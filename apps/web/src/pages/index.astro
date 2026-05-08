@@ -1,62 +1,50 @@
 ---
 import Layout from '../layouts/Layout.astro';
 
+// Coordenadas fijas para la distancia
 const municipios = [
-  { id: 'ayometla', name: 'Ayometla', img: '⛪', subtitle: 'Tradición y comercio local' },
-  { id: 'san-lorenzo', name: 'San Lorenzo', img: '🌳', subtitle: 'Naturaleza y cultura viva' },
-  { id: 'santo-toribio', name: 'Santo Toribio', img: '🌺', subtitle: 'Color y artesanía' }
+  { id: 'ayometla', name: 'Ayometla', img: '⛪', subtitle: 'Tradición y comercio local', lat: 19.2078, lng: -98.2045 },
+  { id: 'san-lorenzo', name: 'San Lorenzo Axocomanitla', img: '🌳', subtitle: 'Naturaleza y cultura viva', lat: 19.2255, lng: -98.2443 },
+  { id: 'santo-toribio', name: 'Santo Toribio Xicohtzinco', img: '🌺', subtitle: 'Color y artesanía', lat: 19.1822, lng: -98.2321 }
 ];
 ---
-
-<Layout title="Smart Tlaxcala">
-  <div class="home-container container">
+<Layout title="Smart Tlaxcala | Bienvenido">
+  <div class="welcome-container container">
     
-    <!-- App Header Elegante -->
-    <header class="app-header">
-      <div class="logo">
-        <span class="icon">🌿</span>
-        <span class="text">Smart <strong>Tlaxcala</strong></span>
+    <!-- Hero Welcoming -->
+    <header class="welcome-hero">
+      <div class="welcome-brand">
+        <span class="brand-icon">🌿</span>
+        <span class="brand-text">Smart <strong>Tlaxcala</strong></span>
       </div>
-      <div class="user-avatar">
-        <span>👤</span>
-      </div>
+      <h1 class="welcome-title">Bienvenido a Tlaxcala</h1>
+      <p class="welcome-subtitle">Descubre la riqueza cultural, gastronómica y comercial de nuestros municipios, estés donde estés.</p>
     </header>
 
-    <!-- Héroe Principal: Geolocalización -->
-    <section class="hero-section">
-      <div class="hero-text">
-        <h1>Tu mundo,<br>en tu bolsillo.</h1>
-        <p>Todo lo que necesitas alrededor de ti, al instante.</p>
-      </div>
-      
-      <div class="action-center">
-        <button id="btnGeo" class="geo-btn pulse-animation">
-          <span class="geo-icon">📍</span>
-          <div class="geo-text">
-            <strong>Descubrir cerca de mí</strong>
-            <span>Usar mi ubicación actual</span>
-          </div>
-        </button>
-        <p id="geoStatus" class="geo-status"></p>
-      </div>
-    </section>
-
-    <!-- Destinos / Navegación Manual -->
-    <section class="destinations-section">
+    <!-- Directorio de Municipios -->
+    <section class="municipios-section">
       <div class="section-header">
-        <h2>Explorar Municipios</h2>
-        <a href="#" class="see-all">Ver mapa</a>
+        <h2>Municipios Disponibles</h2>
+        <div id="geoStatus" class="geo-status-badge">
+           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin-icon"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+           <span>Buscando el más cercano...</span>
+        </div>
       </div>
       
-      <div class="destinations-list">
+      <div class="municipios-grid" id="municipiosGrid">
         {municipios.map((mun) => (
-          <a href={`/${mun.id}`} class="dest-card surface-card">
-            <div class="dest-img">{mun.img}</div>
-            <div class="dest-info">
+          <a href={`/${mun.id}`} class="mun-card" data-lat={mun.lat} data-lng={mun.lng} data-id={mun.id}>
+            <div class="mun-icon-wrapper">
+              <span class="mun-icon">{mun.img}</span>
+            </div>
+            <div class="mun-info">
               <h3>{mun.name}</h3>
               <p>{mun.subtitle}</p>
             </div>
-            <div class="dest-arrow">
+            <div class="mun-distance" style="display:none;">
+              <span>--</span>
+            </div>
+            <div class="mun-arrow">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </div>
           </a>
@@ -64,241 +52,295 @@ const municipios = [
       </div>
     </section>
 
+    <!-- Footer Global -->
+    <footer class="app-footer">
+      <div class="footer-divider"></div>
+      <div class="footer-links">
+        <a href="/registro" class="footer-link">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+          Registrar Negocio
+        </a>
+        <a href="/admin" class="footer-link">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+          Panel Admin
+        </a>
+      </div>
+      <p class="footer-copy">© 2026 Smart Tlaxcala. Todos los derechos reservados.</p>
+    </footer>
   </div>
 </Layout>
 
 <script>
+  function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; 
+    const dLat = (lat2 - lat1) * Math.PI / 180;  
+    const dLon = (lon2 - lon1) * Math.PI / 180; 
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    return R * c; 
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
-    const btnGeo = document.getElementById('btnGeo');
     const geoStatus = document.getElementById('geoStatus');
+    const geoStatusText = geoStatus?.querySelector('span');
+    const geoStatusIcon = geoStatus?.querySelector('.spin-icon');
+    const grid = document.getElementById('municipiosGrid');
+    const cards = Array.from(document.querySelectorAll('.mun-card'));
 
-    if (btnGeo) {
-      btnGeo.addEventListener('click', () => {
-        if (!navigator.geolocation) {
-          geoStatus.innerText = "Ubicación no soportada.";
-          return;
-        }
-
-        geoStatus.innerText = "Buscando...";
-        btnGeo.classList.add('loading');
-
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            localStorage.setItem('userLat', lat.toString());
-            localStorage.setItem('userLng', lng.toString());
-            
-            geoStatus.innerText = "¡Listo!";
-            
-            setTimeout(() => {
-              window.location.href = '/ayometla';
-            }, 500);
-          },
-          (error) => {
-            btnGeo.classList.remove('loading');
-            geoStatus.innerText = "No pudimos obtener tu ubicación.";
-          }
-        );
-      });
+    if (!navigator.geolocation) {
+      if(geoStatusText) geoStatusText.textContent = "Ubicación no soportada";
+      if(geoStatusIcon) geoStatusIcon.style.display = 'none';
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        localStorage.setItem('userLat', lat.toString());
+        localStorage.setItem('userLng', lng.toString());
+        
+        if(geoStatus) geoStatus.classList.add('success');
+        if(geoStatusText) geoStatusText.textContent = "Ordenados por cercanía";
+        if(geoStatusIcon) geoStatusIcon.style.display = 'none';
+
+        cards.forEach(card => {
+          const mLat = parseFloat(card.getAttribute('data-lat') || '0');
+          const mLng = parseFloat(card.getAttribute('data-lng') || '0');
+          const dist = calculateDistance(lat, lng, mLat, mLng);
+          card.setAttribute('data-dist', dist.toString());
+          
+          const distEl = card.querySelector('.mun-distance') as HTMLElement;
+          if (distEl) {
+            distEl.style.display = 'flex';
+            if(dist < 1) {
+              distEl.innerHTML = `<span>📍 ${(dist * 1000).toFixed(0)} m</span>`;
+            } else {
+              distEl.innerHTML = `<span>📍 ${dist.toFixed(1)} km</span>`;
+            }
+          }
+        });
+
+        // Sort DOM
+        cards.sort((a, b) => parseFloat(a.getAttribute('data-dist') || '999') - parseFloat(b.getAttribute('data-dist') || '999'));
+        cards.forEach(card => grid?.appendChild(card));
+      },
+      (error) => {
+        // Fallback: Orden alfabético (ya están así)
+        if(geoStatus) geoStatus.classList.add('error');
+        if(geoStatusText) geoStatusText.textContent = "Orden alfabético";
+        if(geoStatusIcon) geoStatusIcon.style.display = 'none';
+      }
+    );
   });
 </script>
 
-<style>
-  .home-container {
-    padding: 24px 0 60px;
+<style is:global>
+  .welcome-container {
+    padding-top: 40px;
+    padding-bottom: 40px;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
   }
 
-  .app-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 60px;
-  }
-  
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 1.5rem;
-    color: var(--color-text);
-  }
-  
-  .logo .icon { font-size: 1.8rem; }
-  .logo strong { color: var(--color-primary); }
-
-  .user-avatar {
-    width: 48px;
-    height: 48px;
-    background: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: var(--shadow-sm);
-    font-size: 1.4rem;
-  }
-
-  .hero-section {
-    margin-bottom: 80px;
-    text-align: center;
-  }
-
-  .hero-text {
-    max-width: 800px;
-    margin: 0 auto;
-  }
-
-  .hero-text h1 {
-    font-size: clamp(2.5rem, 5vw, 4rem);
-    margin-bottom: 16px;
-  }
-  
-  .hero-text p {
-    font-size: clamp(1.1rem, 2vw, 1.3rem);
-    color: var(--color-text-muted);
+  .welcome-hero {
     margin-bottom: 40px;
-    line-height: 1.6;
-  }
-
-  .action-center {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    max-width: 500px;
-    margin: 0 auto;
-  }
-
-  .geo-btn {
-    width: 100%;
-    background: var(--color-primary);
-    color: white;
-    border: none;
-    border-radius: 30px;
-    padding: 20px 32px;
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    box-shadow: 0 12px 24px rgba(2, 132, 199, 0.3);
-    cursor: pointer;
-    transition: var(--transition);
     text-align: left;
   }
 
-  .geo-btn:active {
-    transform: scale(0.96);
-  }
-
-  .geo-btn.loading {
-    opacity: 0.8;
-    animation: pulse 1s infinite;
-  }
-
-  .geo-icon {
-    font-size: 2.2rem;
-    background: rgba(255,255,255,0.2);
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    display: flex;
+  .welcome-brand {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+    gap: 8px;
+    font-size: 1.25rem;
+    color: var(--color-text);
+    margin-bottom: 24px;
+    background: var(--color-surface);
+    padding: 8px 16px;
+    border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
   }
 
-  .geo-text {
-    display: flex;
-    flex-direction: column;
+  .brand-icon { font-size: 1.5rem; }
+  .brand-text strong { color: var(--color-primary); }
+
+  .welcome-title {
+    font-size: clamp(2.5rem, 8vw, 3.5rem);
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, var(--color-primary) 0%, #1e3a8a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
-  .geo-text strong {
-    font-size: 1.3rem;
-    font-weight: 700;
-  }
-
-  .geo-text span {
-    font-size: 1rem;
-    opacity: 0.9;
-    font-weight: 500;
-  }
-
-  .geo-status {
-    margin-top: 16px;
-    font-size: 1rem;
+  .welcome-subtitle {
+    font-size: clamp(1.1rem, 4vw, 1.25rem);
     color: var(--color-text-muted);
-    text-align: center;
-    height: 24px;
+    line-height: 1.5;
+    max-width: 600px;
   }
 
   .section-header {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 24px;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
   }
 
   .section-header h2 {
     font-size: 1.5rem;
+    font-weight: 800;
   }
 
-  .see-all {
-    font-size: 1rem;
-    font-weight: 600;
-  }
-
-  .destinations-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 20px;
-  }
-
-  .dest-card {
+  .geo-status-badge {
     display: flex;
     align-items: center;
-    padding: 20px;
-    gap: 16px;
-    text-decoration: none;
-    color: var(--color-text);
+    gap: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    background: var(--color-primary-light);
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
+  }
+
+  .geo-status-badge.success {
+    color: var(--color-success);
+    background: #d1fae5;
   }
   
-  .dest-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-    border-color: var(--color-primary-light);
+  .geo-status-badge.error {
+    color: var(--color-text-muted);
+    background: var(--color-border);
   }
 
-  .dest-img {
-    width: 56px;
-    height: 56px;
-    background: var(--color-bg);
-    border-radius: 16px;
+  .spin-icon {
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+
+  .municipios-grid {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.8rem;
-    flex-shrink: 0;
-  }
-
-  .dest-info {
+    flex-direction: column;
+    gap: 16px;
     flex-grow: 1;
   }
 
-  .dest-info h3 {
-    font-size: 1.1rem;
+  .mun-card {
+    display: flex;
+    align-items: center;
+    background: var(--color-surface);
+    padding: 20px;
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--color-border);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .mun-card:active {
+    transform: scale(0.98);
+  }
+
+  .mun-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--color-primary-light);
+  }
+
+  .mun-icon-wrapper {
+    width: 64px;
+    height: 64px;
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    flex-shrink: 0;
+    margin-right: 16px;
+  }
+
+  .mun-info {
+    flex-grow: 1;
+  }
+
+  .mun-info h3 {
+    font-size: 1.2rem;
+    font-weight: 800;
     margin-bottom: 4px;
   }
 
-  .dest-info p {
-    margin: 0;
-    font-size: 0.85rem;
+  .mun-info p {
+    font-size: 0.9rem;
     color: var(--color-text-muted);
+    margin: 0;
   }
 
-  .dest-arrow {
-    color: #cbd5e1;
+  .mun-distance {
+    background: var(--color-bg);
+    padding: 4px 8px;
+    border-radius: var(--radius-pill);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-right: 12px;
+    white-space: nowrap;
+  }
+
+  .mun-arrow {
+    color: var(--color-text-muted);
+    opacity: 0.5;
+  }
+
+  .app-footer {
+    margin-top: auto;
+    padding-top: 60px;
+  }
+
+  .footer-divider {
+    height: 1px;
+    background: var(--color-border);
+    margin-bottom: 24px;
+  }
+
+  .footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .footer-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text);
+    background: var(--color-surface);
+    padding: 10px 16px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--color-border);
+    transition: var(--transition);
+  }
+
+  .footer-link:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .footer-copy {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    text-align: center;
   }
 </style>

@@ -63,7 +63,7 @@ a {
   width: 100%;
   max-width: 1200px; /* Fully responsive para desktop/tablet */
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 24px; /* Mayor respiro en móviles */
 }
 
 /* Glass & Surface Effects */
