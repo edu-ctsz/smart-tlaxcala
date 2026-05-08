@@ -12,27 +12,49 @@ export function getStaticPaths() {
 const { municipio } = Astro.params;
 const { name } = Astro.props;
 
-// Mock data base parameters (aislado para facilitar su futura eliminación)
-const baseLat = 19.2078;
-const baseLng = -98.2045;
-
-// Datos de conexión emocional por municipio
+// Datos de conexión emocional por municipio y coordenadas reales
 const mData = {
   'ayometla': {
-    bg: 'https://images.unsplash.com/photo-1580501170888-80668882ca0c?q=80&w=800&auto=format&fit=crop', 
-    fact: 'Ayometla es famoso por su rica historia comercial y la calidez de su gente.'
+    lat: 19.2078,
+    lng: -98.2045,
+    bg: 'https://images.unsplash.com/photo-1518162817244-8d1f81155985?q=80&w=800&auto=format&fit=crop', 
+    facts: [
+      "Su nombre en náhuatl 'Ayometitla' significa 'En el acueducto del maguey'.",
+      "Fue constituido formalmente como municipio libre e independiente en el año 1995.",
+      "La Iglesia de Santa Catarina registra sus primeros bautizos desde el antiguo año 1523.",
+      "Antiguamente, en este lugar se veneraba a Xilonenteotl, la diosa prehispánica del maíz.",
+      "Sus artesanos son reconocidos en todo el estado por su excelente trabajo en hojalatería."
+    ]
   },
   'san-lorenzo': {
-    bg: 'https://images.unsplash.com/photo-1506057213367-028a17ec5534?q=80&w=800&auto=format&fit=crop',
-    fact: 'San Lorenzo Axocomanitla destaca por sus manantiales y su profunda conexión con la naturaleza.'
+    lat: 19.2255,
+    lng: -98.2443,
+    bg: 'https://images.unsplash.com/photo-1582293041079-7814c2f12063?q=80&w=800&auto=format&fit=crop',
+    facts: [
+      "Es oficialmente el municipio con menor extensión territorial de todo México.",
+      "Su nombre completo 'Axocomanitla' se traduce como 'Lugar donde hay agua agria'.",
+      "Fue fundado en 1465 por militares de Ocotelulco como un punto estratégico de defensa.",
+      "La población original estaba en Teopantzol, pero se mudaron por inundaciones.",
+      "La leyenda cuenta que la imagen de San Lorenzo fue trasladada desde Ocotlán tras una aparición."
+    ]
   },
   'santo-toribio': {
-    bg: 'https://images.unsplash.com/photo-1518162817244-8d1f81155985?q=80&w=800&auto=format&fit=crop',
-    fact: 'Santo Toribio Xicohtzinco es conocido como el lugar de los jilgueros y es cuna de artesanos.'
+    lat: 19.1822,
+    lng: -98.2321,
+    bg: 'https://images.unsplash.com/photo-1596484552834-6a58f850d0a7?q=80&w=800&auto=format&fit=crop',
+    facts: [
+      "Su nombre 'Xicohtzinco' significa 'Detrás de los jicotes' o lugar de pequeñas avispas.",
+      "La leyenda dice que una gran 'jicotera' impidió a los pobladores trasladar al santo patrono.",
+      "Su hermosa parroquia barroca cuenta con cúpulas revestidas en auténtica talavera.",
+      "Fue fundado originalmente por antiguas tribus teochichimecas en la época prehispánica.",
+      "Las dos torres de su iglesia unidas por un gran arco son consideradas un símbolo de paz."
+    ]
   }
 };
 
 const currentData = mData[municipio as keyof typeof mData] || mData['ayometla'];
+// Convertir a string para pasarlo al cliente
+const factsString = JSON.stringify(currentData.facts);
 ---
 
 <Layout title={`Explorar ${name}`}>
@@ -53,13 +75,13 @@ const currentData = mData[municipio as keyof typeof mData] || mData['ayometla'];
     </div>
   </div>
 
-  <div class="container main-content" id="pageData" data-municipio={municipio}>
+  <div class="container main-content" id="pageData" data-municipio={municipio} data-lat={currentData.lat} data-lng={currentData.lng} data-facts={factsString}>
     
     <!-- Hero Greeting & Weather -->
     <div class="hero-greeting">
-      <div class="weather-pill">
+      <div class="weather-pill" id="weatherContainer" style="display: none;">
         <span id="weatherIcon">☀️</span> 
-        <span id="weatherTemp">22°C</span>
+        <span id="weatherTemp">--°C</span>
       </div>
       <h1 id="greetingText">Hola,</h1>
       <p>Explora todo lo que {name} tiene para ofrecerte.</p>
@@ -89,12 +111,12 @@ const currentData = mData[municipio as keyof typeof mData] || mData['ayometla'];
       </a>
     </div>
 
-    <!-- Sabías que... (Cultura y Tradición) -->
-    <div class="cultural-card">
+    <!-- Sabías que... (Cultura y Tradición Dinámica) -->
+    <div class="cultural-card fade-in" id="culturalCard">
       <div class="cultural-icon">💡</div>
       <div class="cultural-content">
         <h4>Sabías que...</h4>
-        <p>{currentData.fact}</p>
+        <p id="culturalFact">Cargando dato curioso...</p>
       </div>
     </div>
 
@@ -122,14 +144,16 @@ const currentData = mData[municipio as keyof typeof mData] || mData['ayometla'];
     </div>
 
     <!-- Footer Space -->
-    <div style="height: 100px;"></div>
+    <div style="height: 60px;"></div>
   </div>
 
-  <!-- FAB Botón Mapa -->
+  <!-- FAB Botón Mapa (Oculto temporalmente) -->
+  <!--
   <button class="fab-map pulse-animation">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
     Ver Mapa
   </button>
+  -->
 
 </Layout>
 
@@ -138,6 +162,12 @@ const currentData = mData[municipio as keyof typeof mData] || mData['ayometla'];
   import { collection, getDocs, query, where, limit } from "firebase/firestore";
 
   document.addEventListener('DOMContentLoaded', async () => {
+    const pageData = document.getElementById('pageData');
+    const currentMunicipio = pageData?.getAttribute('data-municipio');
+    const lat = pageData?.getAttribute('data-lat');
+    const lng = pageData?.getAttribute('data-lng');
+    const factsStr = pageData?.getAttribute('data-facts');
+
     // 1. Contextual Greeting
     const greetingText = document.getElementById('greetingText');
     const hour = new Date().getHours();
@@ -147,27 +177,54 @@ const currentData = mData[municipio as keyof typeof mData] || mData['ayometla'];
     else greeting = 'Buenas noches,';
     if(greetingText) greetingText.innerText = greeting;
 
-    // 2. Simulated Weather Logic
+    // 2. Real-Time Weather via Open-Meteo API
+    const weatherContainer = document.getElementById('weatherContainer');
     const weatherIcon = document.getElementById('weatherIcon');
     const weatherTemp = document.getElementById('weatherTemp');
-    if(weatherIcon && weatherTemp) {
-      // Simulate temperature based on time of day (colder at night/morning)
-      const baseTemp = (hour >= 20 || hour <= 7) ? 14 : 22;
-      const randomVariance = Math.floor(Math.random() * 4) - 2; // -2 to +1
-      weatherTemp.innerText = `${baseTemp + randomVariance}°C`;
-      
-      if(hour >= 19 || hour <= 6) {
-        weatherIcon.innerText = '🌙';
-      } else {
-        weatherIcon.innerText = (Math.random() > 0.5) ? '☀️' : '⛅';
+    
+    if (weatherContainer && weatherIcon && weatherTemp && lat && lng) {
+      try {
+        const req = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`);
+        const res = await req.json();
+        
+        if (res && res.current_weather) {
+          const temp = Math.round(res.current_weather.temperature);
+          const isDay = res.current_weather.is_day;
+          
+          weatherTemp.innerText = `${temp}°C`;
+          weatherIcon.innerText = isDay ? '☀️' : '🌙';
+          weatherContainer.style.display = 'inline-flex';
+        }
+      } catch(e) {
+        console.log("No se pudo obtener el clima en vivo.");
       }
     }
 
-    // 3. Destacados Fetch
-    const pageData = document.getElementById('pageData');
-    const currentMunicipio = pageData?.getAttribute('data-municipio');
-    const destacadosCarousel = document.getElementById('destacadosCarousel');
+    // 3. Random Cultural Fact Rotation
+    const culturalFact = document.getElementById('culturalFact');
+    if (factsStr && culturalFact) {
+      try {
+        const facts = JSON.parse(factsStr);
+        // Show a random one on load
+        const setRandomFact = () => {
+          const randIndex = Math.floor(Math.random() * facts.length);
+          culturalFact.innerText = facts[randIndex];
+        };
+        setRandomFact();
+        
+        // Rotar cada 8 segundos
+        setInterval(() => {
+          culturalFact.style.opacity = '0';
+          setTimeout(() => {
+            setRandomFact();
+            culturalFact.style.opacity = '1';
+          }, 300); // 300ms transition time
+        }, 8000);
+      } catch(e) {}
+    }
 
+    // 4. Destacados Fetch
+    const destacadosCarousel = document.getElementById('destacadosCarousel');
     if (currentMunicipio && destacadosCarousel) {
       try {
         const q = query(collection(db, "negocios"), 
@@ -178,7 +235,6 @@ const currentData = mData[municipio as keyof typeof mData] || mData['ayometla'];
         const snap = await getDocs(q);
         
         let html = '';
-        
         snap.forEach(doc => {
           const data = doc.data();
           const imgUrl = data.photoUrl ? `url('${data.photoUrl}')` : 'none';
@@ -247,7 +303,6 @@ const currentData = mData[municipio as keyof typeof mData] || mData['ayometla'];
     position: sticky;
     top: 0;
     z-index: 50;
-    /* Transparent over image, solidifies when scrolling? By default we use a slight blur */
     background: rgba(245, 247, 250, 0.85);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -291,7 +346,6 @@ const currentData = mData[municipio as keyof typeof mData] || mData['ayometla'];
   }
 
   .weather-pill {
-    display: inline-flex;
     align-items: center;
     gap: 6px;
     background: rgba(255,255,255,0.8);
@@ -336,6 +390,12 @@ const currentData = mData[municipio as keyof typeof mData] || mData['ayometla'];
     font-size: 2rem;
   }
 
+  .cultural-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
   .cultural-content h4 {
     font-size: 1rem;
     margin-bottom: 4px;
@@ -347,6 +407,7 @@ const currentData = mData[municipio as keyof typeof mData] || mData['ayometla'];
     margin: 0;
     color: var(--color-text-muted);
     line-height: 1.4;
+    transition: opacity 0.3s ease-in-out;
   }
 
   /* Quick Access Grid Bento */
@@ -490,31 +551,5 @@ const currentData = mData[municipio as keyof typeof mData] || mData['ayometla'];
   .skeleton-card {
     opacity: 0.6;
     pointer-events: none;
-  }
-
-  /* FAB Button */
-  .fab-map {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--color-text);
-    color: var(--color-surface);
-    border: none;
-    border-radius: var(--radius-pill);
-    padding: 16px 32px;
-    font-size: 1.05rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-    z-index: 100;
-    cursor: pointer;
-    transition: var(--transition);
-  }
-
-  .fab-map:active {
-    transform: translateX(-50%) scale(0.95);
   }
 </style>
