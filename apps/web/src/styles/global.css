@@ -42,6 +42,17 @@ body {
   padding: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Reglas PWA / App Feel */
+  user-select: none; /* Previene la selección accidental de texto */
+  -webkit-user-select: none;
+  -webkit-touch-callout: none; /* Deshabilita el menú nativo en imágenes y links largos */
+  -webkit-tap-highlight-color: transparent; /* Quita el cuadro azul al tocar en móviles */
+}
+
+/* Permitir selección de texto solo donde sea estrictamente necesario (inputs) */
+input, textarea {
+  user-select: auto;
+  -webkit-user-select: auto;
 }
 
 h1, h2, h3, h4, h5 {

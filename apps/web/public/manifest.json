@@ -1,0 +1,21 @@
+{
+  "name": "Smart Tlaxcala",
+  "short_name": "SmartTlaxcala",
+  "description": "Tu mundo en tu bolsillo. Encuentra locales, rutas y turismo en Tlaxcala.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f7fa",
+  "theme_color": "#0284c7",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

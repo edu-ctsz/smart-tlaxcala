@@ -13,13 +13,29 @@ const { title } = Astro.props;
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>{title} | Smart Tlaxcala</title>
-  <meta name="theme-color" content="#ffffff" />
+  <meta name="theme-color" content="#0284c7" />
   <meta name="description" content="Plataforma ciudadana de Tlaxcala: Todo al alcance de tu bolsillo." />
+  <link rel="manifest" href="/manifest.json" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
+  <!-- PWA Install Banner -->
+  <div id="pwaInstallBanner" class="pwa-banner" style="display: none;">
+    <div class="pwa-banner-content">
+      <div class="pwa-icon">📱</div>
+      <div class="pwa-text">
+        <strong>Instala Smart Tlaxcala</strong>
+        <span>Acceso rápido sin necesidad de buscar en Google.</span>
+      </div>
+    </div>
+    <div class="pwa-actions">
+      <button id="pwaDismiss" class="pwa-btn-dismiss">Ahora no</button>
+      <button id="pwaInstallBtn" class="pwa-btn-install">Instalar</button>
+    </div>
+  </div>
+
   <!-- El layout wrapper simula la vista de una App móvil incluso en Desktop -->
   <div class="app-layout">
     <main class="app-content">
@@ -28,6 +44,57 @@ const { title } = Astro.props;
   </div>
 </body>
 </html>
+
+<script>
+  let deferredPrompt;
+  const installBanner = document.getElementById('pwaInstallBanner');
+  const installBtn = document.getElementById('pwaInstallBtn');
+  const dismissBtn = document.getElementById('pwaDismiss');
+
+  // Comprobar si el usuario ya lo descartó
+  const hasDismissed = localStorage.getItem('pwaDismissed');
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevenir que Chrome muestre el prompt nativo directamente
+    e.preventDefault();
+    deferredPrompt = e;
+    
+    // Mostrar nuestro banner si no lo ha descartado antes
+    if (!hasDismissed && installBanner) {
+      setTimeout(() => {
+        installBanner.style.display = 'flex';
+        // Add class for animation
+        setTimeout(() => installBanner.classList.add('visible'), 50);
+      }, 3000); // Mostrar 3 segundos después de cargar
+    }
+  });
+
+  if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+      if (installBanner) {
+        installBanner.classList.remove('visible');
+        setTimeout(() => installBanner.style.display = 'none', 300);
+      }
+      
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+        deferredPrompt = null;
+      }
+    });
+  }
+
+  if (dismissBtn) {
+    dismissBtn.addEventListener('click', () => {
+      if (installBanner) {
+        installBanner.classList.remove('visible');
+        setTimeout(() => installBanner.style.display = 'none', 300);
+      }
+      localStorage.setItem('pwaDismissed', 'true');
+    });
+  }
+</script>
 
 <style>
   body {
@@ -46,5 +113,90 @@ const { title } = Astro.props;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
+  }
+
+  /* PWA Banner Styles */
+  .pwa-banner {
+    position: fixed;
+    top: -100px; /* Start hidden for animation */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 400px;
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+    padding: 16px;
+    z-index: 9999;
+    flex-direction: column;
+    gap: 16px;
+    transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid var(--color-border);
+  }
+
+  .pwa-banner.visible {
+    top: 20px;
+  }
+
+  .pwa-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .pwa-icon {
+    font-size: 2rem;
+    background: var(--color-primary-light);
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+  }
+
+  .pwa-text {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pwa-text strong {
+    font-size: 1rem;
+    color: var(--color-text);
+  }
+
+  .pwa-text span {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+  }
+
+  .pwa-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .pwa-btn-dismiss, .pwa-btn-install {
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--radius-pill);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+
+  .pwa-btn-dismiss {
+    background: transparent;
+    color: var(--color-text-muted);
+  }
+
+  .pwa-btn-install {
+    background: var(--color-primary);
+    color: white;
+  }
+
+  .pwa-btn-install:active {
+    transform: scale(0.95);
   }
 </style>

@@ -15,11 +15,34 @@ const { name } = Astro.props;
 // Mock data base parameters (aislado para facilitar su futura eliminación)
 const baseLat = 19.2078;
 const baseLng = -98.2045;
+
+// Datos de conexión emocional por municipio
+const mData = {
+  'ayometla': {
+    bg: 'https://images.unsplash.com/photo-1580501170888-80668882ca0c?q=80&w=800&auto=format&fit=crop', 
+    fact: 'Ayometla es famoso por su rica historia comercial y la calidez de su gente.'
+  },
+  'san-lorenzo': {
+    bg: 'https://images.unsplash.com/photo-1506057213367-028a17ec5534?q=80&w=800&auto=format&fit=crop',
+    fact: 'San Lorenzo Axocomanitla destaca por sus manantiales y su profunda conexión con la naturaleza.'
+  },
+  'santo-toribio': {
+    bg: 'https://images.unsplash.com/photo-1518162817244-8d1f81155985?q=80&w=800&auto=format&fit=crop',
+    fact: 'Santo Toribio Xicohtzinco es conocido como el lugar de los jilgueros y es cuna de artesanos.'
+  }
+};
+
+const currentData = mData[municipio as keyof typeof mData] || mData['ayometla'];
 ---
 
 <Layout title={`Explorar ${name}`}>
   
-  <!-- Sticky App-Bar -->
+  <!-- Hero Background Image (Conexión Visual) -->
+  <div class="hero-bg" style={`background-image: url('${currentData.bg}');`}>
+    <div class="hero-overlay"></div>
+  </div>
+
+  <!-- Sticky App-Bar (Transparente sobre la imagen) -->
   <div class="sticky-app-bar">
     <div class="app-bar-top">
       <a href="/" class="back-btn">
@@ -32,9 +55,13 @@ const baseLng = -98.2045;
 
   <div class="container main-content" id="pageData" data-municipio={municipio}>
     
-    <!-- Hero Greeting -->
+    <!-- Hero Greeting & Weather -->
     <div class="hero-greeting">
-      <h1>¿Qué buscas hoy?</h1>
+      <div class="weather-pill">
+        <span id="weatherIcon">☀️</span> 
+        <span id="weatherTemp">22°C</span>
+      </div>
+      <h1 id="greetingText">Hola,</h1>
       <p>Explora todo lo que {name} tiene para ofrecerte.</p>
     </div>
 
@@ -62,6 +89,15 @@ const baseLng = -98.2045;
       </a>
     </div>
 
+    <!-- Sabías que... (Cultura y Tradición) -->
+    <div class="cultural-card">
+      <div class="cultural-icon">💡</div>
+      <div class="cultural-content">
+        <h4>Sabías que...</h4>
+        <p>{currentData.fact}</p>
+      </div>
+    </div>
+
     <!-- Sección de Destacados (Carrusel) -->
     <div class="section-header">
       <h3>Destacados en {name}</h3>
@@ -86,8 +122,15 @@ const baseLng = -98.2045;
     </div>
 
     <!-- Footer Space -->
-    <div style="height: 40px;"></div>
+    <div style="height: 100px;"></div>
   </div>
+
+  <!-- FAB Botón Mapa -->
+  <button class="fab-map pulse-animation">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
+    Ver Mapa
+  </button>
+
 </Layout>
 
 <script>
@@ -95,13 +138,38 @@ const baseLng = -98.2045;
   import { collection, getDocs, query, where, limit } from "firebase/firestore";
 
   document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Contextual Greeting
+    const greetingText = document.getElementById('greetingText');
+    const hour = new Date().getHours();
+    let greeting = 'Hola';
+    if (hour >= 5 && hour < 12) greeting = 'Buenos días,';
+    else if (hour >= 12 && hour < 19) greeting = 'Buenas tardes,';
+    else greeting = 'Buenas noches,';
+    if(greetingText) greetingText.innerText = greeting;
+
+    // 2. Simulated Weather Logic
+    const weatherIcon = document.getElementById('weatherIcon');
+    const weatherTemp = document.getElementById('weatherTemp');
+    if(weatherIcon && weatherTemp) {
+      // Simulate temperature based on time of day (colder at night/morning)
+      const baseTemp = (hour >= 20 || hour <= 7) ? 14 : 22;
+      const randomVariance = Math.floor(Math.random() * 4) - 2; // -2 to +1
+      weatherTemp.innerText = `${baseTemp + randomVariance}°C`;
+      
+      if(hour >= 19 || hour <= 6) {
+        weatherIcon.innerText = '🌙';
+      } else {
+        weatherIcon.innerText = (Math.random() > 0.5) ? '☀️' : '⛅';
+      }
+    }
+
+    // 3. Destacados Fetch
     const pageData = document.getElementById('pageData');
     const currentMunicipio = pageData?.getAttribute('data-municipio');
     const destacadosCarousel = document.getElementById('destacadosCarousel');
 
     if (currentMunicipio && destacadosCarousel) {
       try {
-        // Fetch up to 5 random/active items for the carousel
         const q = query(collection(db, "negocios"), 
                         where("municipio", "==", currentMunicipio), 
                         where("estado", "==", "activo"),
@@ -131,7 +199,6 @@ const baseLng = -98.2045;
         });
         
         if (html === '') {
-          // Si no hay negocios, mostrar el mock
           html = `
             <a href="#" class="carousel-card">
               <div class="carousel-img" style="background-color: #fef3c7;"><span style="font-size:3rem; display:flex; justify-content:center; align-items:center; height:100%;">🌮</span></div>
@@ -149,9 +216,7 @@ const baseLng = -98.2045;
             </a>
           `;
         }
-
         destacadosCarousel.innerHTML = html;
-
       } catch (error) {
         console.error("Error cargando destacados:", error);
       }
@@ -160,13 +225,33 @@ const baseLng = -98.2045;
 </script>
 
 <style is:global>
+  /* Hero Background Integration */
+  .hero-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 350px;
+    background-size: cover;
+    background-position: center;
+    z-index: 0;
+  }
+
+  .hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(245, 247, 250, 0.4) 0%, var(--color-bg) 100%);
+  }
+
   .sticky-app-bar {
     position: sticky;
     top: 0;
     z-index: 50;
-    background: rgba(255, 255, 255, 0.95);
+    /* Transparent over image, solidifies when scrolling? By default we use a slight blur */
+    background: rgba(245, 247, 250, 0.85);
     backdrop-filter: blur(16px);
-    border-bottom: 1px solid transparent;
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
     padding: 16px 20px 0;
   }
 
@@ -196,27 +281,72 @@ const baseLng = -98.2045;
   }
 
   .main-content {
-    padding-top: 12px;
+    position: relative;
+    z-index: 10;
+    padding-top: 24px;
   }
 
   .hero-greeting {
-    margin-bottom: 24px;
+    margin-bottom: 32px;
+  }
+
+  .weather-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.8);
+    backdrop-filter: blur(8px);
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-sm);
   }
 
   .hero-greeting h1 {
-    font-size: 2rem;
-    font-weight: 800;
+    font-size: 2.2rem;
+    font-weight: 900;
     line-height: 1.1;
     margin-bottom: 8px;
-    background: linear-gradient(135deg, var(--color-text) 0%, #475569 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--color-text);
   }
 
   .hero-greeting p {
     color: var(--color-text-muted);
-    font-size: 1rem;
+    font-size: 1.05rem;
+    font-weight: 500;
     margin: 0;
+  }
+
+  /* Cultural Card */
+  .cultural-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    display: flex;
+    gap: 16px;
+    margin-bottom: 40px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+  }
+
+  .cultural-icon {
+    font-size: 2rem;
+  }
+
+  .cultural-content h4 {
+    font-size: 1rem;
+    margin-bottom: 4px;
+    color: var(--color-primary);
+  }
+
+  .cultural-content p {
+    font-size: 0.9rem;
+    margin: 0;
+    color: var(--color-text-muted);
+    line-height: 1.4;
   }
 
   /* Quick Access Grid Bento */
@@ -224,7 +354,7 @@ const baseLng = -98.2045;
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
-    margin-bottom: 40px;
+    margin-bottom: 32px;
   }
 
   .quick-card {
@@ -305,7 +435,7 @@ const baseLng = -98.2045;
     scroll-snap-type: x mandatory;
     -ms-overflow-style: none;
     scrollbar-width: none;
-    margin: 0 -20px; /* Bleed off edges */
+    margin: 0 -20px;
     padding: 0 20px 20px 20px;
   }
 
@@ -360,5 +490,31 @@ const baseLng = -98.2045;
   .skeleton-card {
     opacity: 0.6;
     pointer-events: none;
+  }
+
+  /* FAB Button */
+  .fab-map {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--color-text);
+    color: var(--color-surface);
+    border: none;
+    border-radius: var(--radius-pill);
+    padding: 16px 32px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    z-index: 100;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+
+  .fab-map:active {
+    transform: translateX(-50%) scale(0.95);
   }
 </style>
