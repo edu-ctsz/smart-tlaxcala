@@ -57,7 +57,10 @@ const currentData = mData[municipio as keyof typeof mData] || mData['ayometla'];
 const factsString = JSON.stringify(currentData.facts);
 ---
 
-<Layout title={`Explorar ${name}`}>
+<Layout 
+  title={`Explorar ${name}`}
+  description={`Descubre todo lo que ${name} tiene para ofrecer: negocios locales, turismo, transporte, eventos y avisos oficiales en Smart Tlaxcala.`}
+>
   
   <!-- Hero Background Image (Conexión Visual) -->
   <div class="hero-bg" style={`background-image: url('${currentData.bg}');`}>
