@@ -12,19 +12,9 @@ export function getStaticPaths() {
 const { municipio } = Astro.params;
 const { name } = Astro.props;
 
-// Coordenadas base del municipio (ej. Centro)
+// Mock data base parameters (aislado para facilitar su futura eliminación)
 const baseLat = 19.2078;
 const baseLng = -98.2045;
-
-// Mock de datos enriquecido para la App
-const allItems = [
-  { id: 't1', nombre: 'Ruta 1 Centro - Estación', tipo: 'transporte', costo: '$10.00 MXN', horario: '06:00 - 22:00', icon: '🚐', lat: baseLat + 0.005, lng: baseLng, tags: "bus, combi, parada" },
-  { id: 't2', nombre: 'Parroquia principal', tipo: 'turismo', categoria: 'Arquitectura Colonial', icon: '⛪', lat: baseLat + 0.001, lng: baseLng - 0.001, tags: "iglesia, fotos, centro" },
-  { id: 'e1', nombre: 'Feria Patronal', tipo: 'evento', fecha: 'Próximo 15 de Agosto', icon: '🎉', lat: baseLat - 0.002, lng: baseLng + 0.003, tags: "fiesta, juegos, diversion" },
-  { id: 'a1', nombre: 'Campaña de Vacunación', tipo: 'aviso', fecha: 'Fin de semana', categoria: 'Salud Pública', icon: '📢', lat: baseLat, lng: baseLng, tags: "salud, perros, vacunas" },
-  { id: 'n1', nombre: 'Taquería El Pastor', tipo: 'negocio', categoria: 'Comida', precio: '$', icon: '🌮', lat: baseLat + 0.008, lng: baseLng + 0.008, tags: "tacos, cena, carne, pastor", contacto: "246 123 4567" },
-  { id: 'n2', nombre: 'Cafetería La Parroquia', tipo: 'negocio', categoria: 'Bebidas', precio: '$$', icon: '☕', lat: baseLat - 0.005, lng: baseLng - 0.004, tags: "cafe, capuchino, pan, postres, bebidas", contacto: "246 987 6543" }
-];
 ---
 
 <Layout title={`Explorar ${name}`}>
@@ -38,240 +28,145 @@ const allItems = [
       <h2>{name}</h2>
       <div class="header-action"></div>
     </div>
-    
-    <!-- Search Input -->
-    <div class="search-container">
-      <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-      <input type="search" id="searchInput" placeholder="Tacos, transporte, turismo..." aria-label="Buscar">
-    </div>
-
-    <!-- Scrollable Pills -->
-    <div class="pills-container">
-      <button class="pill active" data-filter="all">🌟 Todo</button>
-      <button class="pill" data-filter="negocio">🏪 Locales</button>
-      <button class="pill" data-filter="turismo">📸 Turismo</button>
-      <button class="pill" data-filter="transporte">🚐 Transporte</button>
-      <button class="pill" data-filter="evento">🎉 Eventos</button>
-      <button class="pill" data-filter="aviso">📢 Avisos</button>
-    </div>
   </div>
 
   <div class="container main-content" id="pageData" data-municipio={municipio}>
-    <!-- Indicador de geolocalización -->
-    <div id="distanceIndicator" class="distance-indicator" style="display: none;">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
-      Mostrando los más cercanos a ti
+    
+    <!-- Hero Greeting -->
+    <div class="hero-greeting">
+      <h1>¿Qué buscas hoy?</h1>
+      <p>Explora todo lo que {name} tiene para ofrecerte.</p>
     </div>
 
-    <!-- Cards 2.0 Grid -->
-    <div class="items-list" id="itemsGrid">
-      {allItems.map((item) => (
-        <div class="app-card surface-card" data-type={item.tipo} data-name={item.nombre.toLowerCase()} data-tags={item.tags ? item.tags.toLowerCase() : ''} data-lat={item.lat} data-lng={item.lng}>
-          
-          <div class="card-body">
-            <!-- Izquierda: Icono flotante -->
-            <div class={`card-icon-box type-${item.tipo}`}>
-              <span class="icon">{item.icon || '🏪'}</span>
-            </div>
-            
-            <!-- Centro: Información -->
-            <div class="card-info">
-              <h3>{item.nombre}</h3>
-              <p class="subtitle">{item.categoria || item.tipo.charAt(0).toUpperCase() + item.tipo.slice(1)}</p>
-              
-              <div class="card-meta">
-                {item.precio && <span class="meta-tag price">{item.precio}</span>}
-                {item.horario && <span class="meta-text">{item.horario}</span>}
-                {item.fecha && <span class="meta-text">{item.fecha}</span>}
-              </div>
-            </div>
-          </div>
-          
-          <!-- Badge de distancia destacado -->
-          <div class="distance-badge" style="display: none;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-            <span class="dist-val">--</span>
-          </div>
-          
-          <!-- CTA Action Base -->
-          <div class="card-action-bar">
-            {item.costo ? (
-              <div class="cost-tag">{item.costo}</div>
-            ) : (
-              <button class="action-btn">
-                {item.contacto ? 'Contactar' : 'Ver detalles'} 
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-              </button>
-            )}
-          </div>
-        </div>
-      ))}
-      
-      <div class="empty-state" id="emptyState" style={allItems.length === 0 ? "display:flex;" : "display:none;"}>
-        <div class="empty-icon">🔍</div>
-        <h3>No encontramos resultados</h3>
-        <p>Intenta buscar con otras palabras o selecciona otra categoría.</p>
-      </div>
+    <!-- Quick Access Grid (Super App Style) -->
+    <div class="quick-access-grid">
+      <a href={`/${municipio}/negocios`} class="quick-card bg-negocio">
+        <span class="icon">🏪</span>
+        <span class="label">Locales y Negocios</span>
+      </a>
+      <a href={`/${municipio}/turismo`} class="quick-card bg-turismo">
+        <span class="icon">📸</span>
+        <span class="label">Turismo</span>
+      </a>
+      <a href={`/${municipio}/transporte`} class="quick-card bg-transporte">
+        <span class="icon">🚐</span>
+        <span class="label">Transporte</span>
+      </a>
+      <a href={`/${municipio}/eventos`} class="quick-card bg-evento">
+        <span class="icon">🎉</span>
+        <span class="label">Eventos</span>
+      </a>
+      <a href={`/${municipio}/avisos`} class="quick-card bg-aviso">
+        <span class="icon">📢</span>
+        <span class="label">Avisos Oficiales</span>
+      </a>
     </div>
+
+    <!-- Sección de Destacados (Carrusel) -->
+    <div class="section-header">
+      <h3>Destacados en {name}</h3>
+    </div>
+    
+    <div class="carousel-container" id="destacadosCarousel">
+      <!-- Mocks Temporales hasta que cargue Firebase -->
+      <a href="#" class="carousel-card skeleton-card">
+        <div class="carousel-img"></div>
+        <div class="carousel-info">
+          <h4>Cargando...</h4>
+          <p>...</p>
+        </div>
+      </a>
+      <a href="#" class="carousel-card skeleton-card">
+        <div class="carousel-img"></div>
+        <div class="carousel-info">
+          <h4>Cargando...</h4>
+          <p>...</p>
+        </div>
+      </a>
+    </div>
+
+    <!-- Footer Space -->
+    <div style="height: 40px;"></div>
   </div>
 </Layout>
 
 <script>
   import { db } from "../lib/firebase";
-  import { collection, getDocs, query, where } from "firebase/firestore";
-
-  function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; 
-    const dLat = (lat2 - lat1) * Math.PI / 180;  
-    const dLon = (lon2 - lon1) * Math.PI / 180; 
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2); 
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-    return R * c; 
-  }
+  import { collection, getDocs, query, where, limit } from "firebase/firestore";
 
   document.addEventListener('DOMContentLoaded', async () => {
-    const pills = document.querySelectorAll('.pill');
-    let cards = Array.from(document.querySelectorAll('.app-card'));
-    const searchInput = document.getElementById('searchInput') as HTMLInputElement;
-    const itemsGrid = document.getElementById('itemsGrid');
-    const emptyState = document.getElementById('emptyState');
-    const distanceIndicator = document.getElementById('distanceIndicator');
     const pageData = document.getElementById('pageData');
     const currentMunicipio = pageData?.getAttribute('data-municipio');
+    const destacadosCarousel = document.getElementById('destacadosCarousel');
 
-    let currentFilter = 'all';
-    let currentSearch = '';
-    
-    // 1. Fetch Dynamic Data
-    if (currentMunicipio) {
+    if (currentMunicipio && destacadosCarousel) {
       try {
-        const q = query(collection(db, "negocios"), where("municipio", "==", currentMunicipio), where("estado", "==", "activo"));
+        // Fetch up to 5 random/active items for the carousel
+        const q = query(collection(db, "negocios"), 
+                        where("municipio", "==", currentMunicipio), 
+                        where("estado", "==", "activo"),
+                        limit(5));
+                        
         const snap = await getDocs(q);
+        
+        let html = '';
         
         snap.forEach(doc => {
           const data = doc.data();
-          const cardHTML = `
-            <div class="app-card surface-card" data-type="${data.tipo || 'negocio'}" data-name="${data.nombre.toLowerCase()}" data-tags="${(data.tags || '').toLowerCase()}" data-lat="${data.lat || 0}" data-lng="${data.lng || 0}">
-              <div class="card-body">
-                <div class="card-icon-box type-${data.tipo || 'negocio'}">
-                  ${data.photoUrl ? `<div style="width:100%; height:100%; border-radius:8px; background-size:cover; background-position:center; background-image:url('${data.photoUrl}')"></div>` : '<span class="icon">🏪</span>'}
-                </div>
-                <div class="card-info">
-                  <h3>${data.nombre}</h3>
-                  <p class="subtitle">${data.categoria || 'Negocio'}</p>
-                </div>
+          const imgUrl = data.photoUrl ? `url('${data.photoUrl}')` : 'none';
+          const bgColor = data.photoUrl ? 'transparent' : '#fef3c7';
+          const iconHTML = data.photoUrl ? '' : '<span style="font-size:3rem; display:flex; justify-content:center; align-items:center; height:100%;">🏪</span>';
+
+          html += `
+            <a href="/${currentMunicipio}/detalle?id=${doc.id}" class="carousel-card">
+              <div class="carousel-img" style="background-image: ${imgUrl}; background-color: ${bgColor};">
+                ${iconHTML}
               </div>
-              <div class="distance-badge" style="display: none;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                <span class="dist-val">--</span>
+              <div class="carousel-info">
+                <h4>${data.nombre}</h4>
+                <p>${data.categoria || 'Negocio Local'}</p>
               </div>
-              <div class="card-action-bar">
-                <button class="action-btn">
-                  ${data.contacto || 'Ver detalles'}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                </button>
-              </div>
-            </div>
+            </a>
           `;
-          // Inyectar en el DOM al principio del Grid
-          if (emptyState) {
-            emptyState.insertAdjacentHTML('beforebegin', cardHTML);
-          }
         });
         
-        // Refrescar lista de cards
-        cards = Array.from(document.querySelectorAll('.app-card'));
+        if (html === '') {
+          // Si no hay negocios, mostrar el mock
+          html = `
+            <a href="#" class="carousel-card">
+              <div class="carousel-img" style="background-color: #fef3c7;"><span style="font-size:3rem; display:flex; justify-content:center; align-items:center; height:100%;">🌮</span></div>
+              <div class="carousel-info">
+                <h4>Taquería El Pastor (Mock)</h4>
+                <p>Comida</p>
+              </div>
+            </a>
+            <a href="#" class="carousel-card">
+              <div class="carousel-img" style="background-color: #dcfce7;"><span style="font-size:3rem; display:flex; justify-content:center; align-items:center; height:100%;">⛪</span></div>
+              <div class="carousel-info">
+                <h4>Parroquia Principal (Mock)</h4>
+                <p>Turismo</p>
+              </div>
+            </a>
+          `;
+        }
+
+        destacadosCarousel.innerHTML = html;
+
       } catch (error) {
-        console.error("Error al cargar negocios en vivo:", error);
+        console.error("Error cargando destacados:", error);
       }
-    }
-
-    // 2. Proximity Sorting
-    const userLatStr = localStorage.getItem('userLat');
-    const userLngStr = localStorage.getItem('userLng');
-    
-    if (userLatStr && userLngStr) {
-      const userLat = parseFloat(userLatStr);
-      const userLng = parseFloat(userLngStr);
-      
-      if(distanceIndicator) distanceIndicator.style.display = 'flex';
-      
-      cards.forEach(card => {
-        const itemLat = parseFloat(card.getAttribute('data-lat') || '0');
-        const itemLng = parseFloat(card.getAttribute('data-lng') || '0');
-        const dist = calculateDistance(userLat, userLng, itemLat, itemLng);
-        card.setAttribute('data-dist', dist.toString());
-        
-        const distBadge = card.querySelector('.distance-badge') as HTMLElement;
-        const distVal = card.querySelector('.dist-val');
-        if (distBadge && distVal) {
-          distBadge.style.display = 'flex';
-          if (dist < 1) {
-            distVal.innerText = (dist * 1000).toFixed(0) + ' m';
-          } else {
-            distVal.innerText = dist.toFixed(1) + ' km';
-          }
-        }
-      });
-      
-      cards.sort((a, b) => parseFloat(a.getAttribute('data-dist') || '9999') - parseFloat(b.getAttribute('data-dist') || '9999'));
-      cards.forEach(card => itemsGrid?.insertBefore(card, emptyState));
-    }
-
-    // 3. Filtering
-    function applyFilters() {
-      let visibleCount = 0;
-      cards.forEach(card => {
-        const itemType = card.getAttribute('data-type') || '';
-        const itemName = card.getAttribute('data-name') || '';
-        const itemTags = card.getAttribute('data-tags') || '';
-        
-        const matchesFilter = currentFilter === 'all' || itemType === currentFilter;
-        const matchesSearch = itemName.includes(currentSearch) || itemTags.includes(currentSearch);
-        
-        if (matchesFilter && matchesSearch) {
-          (card as HTMLElement).style.display = 'flex';
-          visibleCount++;
-        } else {
-          (card as HTMLElement).style.display = 'none';
-        }
-      });
-      
-      if(emptyState) emptyState.style.display = visibleCount === 0 ? 'flex' : 'none';
-    }
-
-    // Bind Pills
-    pills.forEach(pill => {
-      pill.addEventListener('click', () => {
-        pills.forEach(p => p.classList.remove('active'));
-        pill.classList.add('active');
-        currentFilter = pill.getAttribute('data-filter') || 'all';
-        applyFilters();
-        pill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-      });
-    });
-
-    // Bind Search
-    if (searchInput) {
-      searchInput.addEventListener('input', (e) => {
-        currentSearch = (e.target as HTMLInputElement).value.toLowerCase();
-        applyFilters();
-      });
     }
   });
 </script>
 
-<style>
+<style is:global>
   .sticky-app-bar {
     position: sticky;
     top: 0;
     z-index: 50;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(16px);
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid transparent;
     padding: 16px 20px 0;
   }
 
@@ -297,244 +192,173 @@ const allItems = [
   }
 
   .header-action {
-    width: 40px; /* Balance symmetry */
-  }
-
-  .search-container {
-    position: relative;
-    margin-bottom: 16px;
-  }
-
-  .search-icon {
-    position: absolute;
-    left: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--color-text-muted);
-  }
-
-  #searchInput {
-    width: 100%;
-    background: var(--color-bg);
-    border: 1px solid transparent;
-    padding: 14px 16px 14px 44px;
-    border-radius: var(--radius-md);
-    font-size: 1rem;
-    font-family: var(--font-family);
-    transition: var(--transition);
-  }
-
-  #searchInput:focus {
-    outline: none;
-    background: var(--color-surface);
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 4px var(--color-primary-light);
-  }
-
-  .pills-container {
-    display: flex;
-    overflow-x: auto;
-    gap: 8px;
-    padding-bottom: 16px;
-    -ms-overflow-style: none;  
-    scrollbar-width: none;
-  }
-
-  .pills-container::-webkit-scrollbar { 
-    display: none; 
-  }
-
-  .pill {
-    white-space: nowrap;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    padding: 8px 16px;
-    border-radius: var(--radius-pill);
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    transition: var(--transition);
-  }
-
-  .pill.active {
-    background: var(--color-text);
-    color: var(--color-surface);
-    border-color: var(--color-text);
+    width: 40px;
   }
 
   .main-content {
-    padding-top: 24px;
-    padding-bottom: 80px;
+    padding-top: 12px;
   }
 
-  .distance-indicator {
-    align-items: center;
-    gap: 8px;
-    color: var(--color-primary);
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-bottom: 16px;
-    padding: 0 4px;
+  .hero-greeting {
+    margin-bottom: 24px;
   }
 
-  .items-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  /* Cards 2.0 Asymmetric Layout */
-  .app-card {
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .card-body {
-    display: flex;
-    padding: 16px;
-    gap: 16px;
-  }
-
-  .card-icon-box {
-    width: 64px;
-    height: 64px;
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .hero-greeting h1 {
     font-size: 2rem;
-    flex-shrink: 0;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--color-text) 0%, #475569 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
-  /* Colores sutiles por categoría */
-  .type-negocio { background: #fef3c7; }
-  .type-turismo { background: #dcfce7; }
-  .type-transporte { background: #e0e7ff; }
-  .type-evento { background: #fce7f3; }
-  .type-aviso { background: #fee2e2; }
-
-  .card-info {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding-right: 48px; /* Espacio para el badge de distancia */
-  }
-
-  .card-info h3 {
-    font-size: 1.1rem;
-    margin-bottom: 4px;
-    line-height: 1.3;
-  }
-
-  .card-info .subtitle {
-    font-size: 0.85rem;
+  .hero-greeting p {
     color: var(--color-text-muted);
-    margin: 0 0 8px 0;
-  }
-
-  .card-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .meta-tag {
-    font-size: 0.75rem;
-    font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: var(--color-bg);
-  }
-
-  .meta-tag.price {
-    color: var(--color-success);
-    background: #d1fae5;
-  }
-
-  .meta-text {
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
-  }
-
-  /* Distance Badge Flotante Superior Derecha */
-  .distance-badge {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    background: var(--color-bg);
-    color: var(--color-text);
-    font-size: 0.75rem;
-    font-weight: 700;
-    padding: 4px 8px;
-    border-radius: var(--radius-pill);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .distance-badge svg {
-    color: var(--color-primary);
-  }
-
-  /* Card Action Base */
-  .card-action-bar {
-    border-top: 1px solid var(--color-border);
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding: 12px 16px;
-    background: #fafbfc;
-  }
-
-  .action-btn {
-    background: transparent;
-    border: none;
-    color: var(--color-primary);
-    font-weight: 600;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    cursor: pointer;
-    padding: 0;
-  }
-
-  .cost-tag {
-    font-weight: 700;
     font-size: 1rem;
-    color: var(--color-text);
+    margin: 0;
   }
 
-  /* Empty State Moderno */
-  .empty-state {
+  /* Quick Access Grid Bento */
+  .quick-access-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+
+  .quick-card {
+    display: flex;
     flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 16px;
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    color: var(--color-text);
+    transition: transform 0.2s, box-shadow 0.2s;
+    min-height: 110px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  }
+
+  .quick-card:active {
+    transform: scale(0.96);
+  }
+
+  .quick-card:first-child {
+    grid-column: span 2;
+    flex-direction: row;
     align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 60px 20px;
+    justify-content: flex-start;
+    gap: 20px;
+    padding: 24px;
+    min-height: 120px;
+  }
+
+  .quick-card:first-child .icon {
+    font-size: 3rem;
+    margin-bottom: 0;
+  }
+
+  .quick-card:first-child .label {
+    font-size: 1.3rem;
+    font-weight: 800;
+  }
+
+  .quick-card .icon {
+    font-size: 2rem;
+    margin-bottom: auto;
+  }
+
+  .quick-card .label {
+    font-weight: 700;
+    font-size: 0.95rem;
+    line-height: 1.2;
+    margin-top: 12px;
+  }
+
+  .bg-negocio { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
+  .bg-turismo { background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); }
+  .bg-transporte { background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); }
+  .bg-evento { background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); }
+  .bg-aviso { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); }
+
+  /* Carousel Destacados */
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .section-header h3 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    margin: 0;
+  }
+
+  .carousel-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 16px;
+    padding-bottom: 16px;
+    scroll-snap-type: x mandatory;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    margin: 0 -20px; /* Bleed off edges */
+    padding: 0 20px 20px 20px;
+  }
+
+  .carousel-container::-webkit-scrollbar { display: none; }
+
+  .carousel-card {
+    min-width: 260px;
+    max-width: 260px;
+    scroll-snap-align: center;
     background: var(--color-surface);
     border-radius: var(--radius-lg);
-    border: 1px dashed #cbd5e1;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.2s;
   }
 
-  .empty-icon {
-    font-size: 3rem;
-    margin-bottom: 16px;
-    opacity: 0.5;
+  .carousel-card:active {
+    transform: scale(0.98);
   }
 
-  .empty-state h3 {
-    margin-bottom: 8px;
+  .carousel-img {
+    height: 140px;
+    background-size: cover;
+    background-position: center;
+    background-color: var(--color-border);
   }
 
-  .empty-state p {
+  .carousel-info {
+    padding: 16px;
+  }
+
+  .carousel-info h4 {
+    margin-bottom: 4px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .carousel-info p {
     color: var(--color-text-muted);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     margin: 0;
+  }
+
+  .skeleton-card {
+    opacity: 0.6;
+    pointer-events: none;
   }
 </style>

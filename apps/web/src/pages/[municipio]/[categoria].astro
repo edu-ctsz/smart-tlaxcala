@@ -1,0 +1,416 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+export function getStaticPaths() {
+  const municipios = [
+    { id: 'ayometla', name: 'Ayometla' },
+    { id: 'san-lorenzo', name: 'San Lorenzo' },
+    { id: 'santo-toribio', name: 'Santo Toribio' }
+  ];
+  
+  const categorias = [
+    { id: 'negocios', name: 'Locales y Negocios', tipo: 'negocio', icon: '🏪' },
+    { id: 'turismo', name: 'Turismo', tipo: 'turismo', icon: '📸' },
+    { id: 'transporte', name: 'Transporte Público', tipo: 'transporte', icon: '🚐' },
+    { id: 'eventos', name: 'Eventos', tipo: 'evento', icon: '🎉' },
+    { id: 'avisos', name: 'Avisos', tipo: 'aviso', icon: '📢' }
+  ];
+
+  let paths = [];
+  municipios.forEach(m => {
+    categorias.forEach(c => {
+      paths.push({
+        params: { municipio: m.id, categoria: c.id },
+        props: { municipioName: m.name, categoriaName: c.name, tipo: c.tipo, icon: c.icon }
+      });
+    });
+  });
+  
+  return paths;
+}
+
+const { municipio, categoria } = Astro.params;
+const { municipioName, categoriaName, tipo, icon } = Astro.props;
+---
+
+<Layout title={`${categoriaName} en ${municipioName}`}>
+  <div class="sticky-app-bar">
+    <div class="app-bar-top">
+      <a href={`/${municipio}`} class="back-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+      </a>
+      <h2>{categoriaName}</h2>
+      <div class="header-action"></div>
+    </div>
+    
+    <div class="search-container">
+      <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="search" id="searchInput" placeholder={`Buscar en ${categoriaName.toLowerCase()}...`} aria-label="Buscar">
+    </div>
+  </div>
+
+  <div class="container main-content" id="pageData" data-municipio={municipio} data-tipo={tipo} data-icon={icon}>
+    <!-- Indicador de geolocalización -->
+    <div id="distanceIndicator" class="distance-indicator" style="display: none;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
+      Mostrando los más cercanos a ti
+    </div>
+
+    <!-- Resultados -->
+    <div class="items-list" id="itemsGrid">
+      <div class="empty-state" id="emptyState" style="display:none;">
+        <div class="empty-icon">🔍</div>
+        <h3>No encontramos resultados</h3>
+        <p>Intenta buscar con otras palabras o selecciona otra categoría.</p>
+      </div>
+      <div id="loadingState" style="text-align:center; padding: 40px; color: var(--color-text-muted);">
+        Cargando ${categoriaName.toLowerCase()}...
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { db } from "../../lib/firebase";
+  import { collection, getDocs, query, where } from "firebase/firestore";
+
+  function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; 
+    const dLat = (lat2 - lat1) * Math.PI / 180;  
+    const dLon = (lon2 - lon1) * Math.PI / 180; 
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    return R * c; 
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    let cards = [];
+    const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+    const itemsGrid = document.getElementById('itemsGrid');
+    const emptyState = document.getElementById('emptyState');
+    const loadingState = document.getElementById('loadingState');
+    const distanceIndicator = document.getElementById('distanceIndicator');
+    
+    const pageData = document.getElementById('pageData');
+    const currentMunicipio = pageData?.getAttribute('data-municipio');
+    const currentTipo = pageData?.getAttribute('data-tipo');
+    const defaultIcon = pageData?.getAttribute('data-icon') || '🏪';
+
+    let currentSearch = '';
+    
+    // 1. Fetch Dynamic Data from Firebase
+    if (currentMunicipio && currentTipo) {
+      try {
+        const q = query(collection(db, "negocios"), 
+                        where("municipio", "==", currentMunicipio), 
+                        where("estado", "==", "activo"),
+                        where("tipo", "==", currentTipo));
+                        
+        const snap = await getDocs(q);
+        if(loadingState) loadingState.style.display = 'none';
+
+        if (snap.empty) {
+          if(emptyState) emptyState.style.display = 'flex';
+        }
+
+        snap.forEach(doc => {
+          const data = doc.data();
+          const cardHTML = `
+            <div class="app-card surface-card" data-name="${(data.nombre || '').toLowerCase()}" data-tags="${(data.tags || '').toLowerCase()}" data-lat="${data.lat || 0}" data-lng="${data.lng || 0}">
+              <a href="/${currentMunicipio}/detalle?id=${doc.id}" style="text-decoration:none; color:inherit; flex-grow:1; display:flex; flex-direction:column;">
+                <div class="card-body" style="padding-bottom: 0;">
+                  <div class="card-icon-box type-${data.tipo || 'negocio'}" style="${data.photoUrl ? `background-image: url('${data.photoUrl}'); background-size: cover; background-position: center; border: 1px solid var(--color-border);` : ''}">
+                    ${data.photoUrl ? '' : `<span class="icon">${defaultIcon}</span>`}
+                  </div>
+                  
+                  <div class="card-info">
+                    <h3>${data.nombre}</h3>
+                    <p class="subtitle">${data.categoria || 'Listado'}</p>
+                    <div class="card-meta">
+                      <span class="meta-tag price">Abierto</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="distance-badge" style="display: none;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                  <span class="dist-val">--</span>
+                </div>
+                
+                <div class="card-action-bar" style="margin-top: 12px; border-top: none; justify-content: flex-start; padding-top: 0;">
+                  <span class="action-btn" style="color: var(--color-text-muted);">
+                    Ver detalles completos
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                  </span>
+                </div>
+              </a>
+            </div>
+          `;
+          
+          if (emptyState) {
+            emptyState.insertAdjacentHTML('beforebegin', cardHTML);
+          }
+        });
+        
+        cards = Array.from(document.querySelectorAll('.app-card'));
+        
+        // Apply Proximity Sorting after DOM injection
+        applyProximitySorting();
+        
+      } catch (error) {
+        console.error("Error al cargar listado:", error);
+        if(loadingState) loadingState.innerHTML = 'Error al cargar los datos. Intenta nuevamente.';
+      }
+    }
+
+    function applyProximitySorting() {
+      const userLatStr = localStorage.getItem('userLat');
+      const userLngStr = localStorage.getItem('userLng');
+      
+      if (userLatStr && userLngStr && cards.length > 0) {
+        const userLat = parseFloat(userLatStr);
+        const userLng = parseFloat(userLngStr);
+        
+        if(distanceIndicator) distanceIndicator.style.display = 'flex';
+        
+        cards.forEach(card => {
+          const itemLat = parseFloat(card.getAttribute('data-lat') || '0');
+          const itemLng = parseFloat(card.getAttribute('data-lng') || '0');
+          const dist = calculateDistance(userLat, userLng, itemLat, itemLng);
+          card.setAttribute('data-dist', dist.toString());
+          
+          const distBadge = card.querySelector('.distance-badge') as HTMLElement;
+          const distVal = card.querySelector('.dist-val');
+          if (distBadge && distVal) {
+            distBadge.style.display = 'flex';
+            if (dist < 1) {
+              distVal.innerText = (dist * 1000).toFixed(0) + ' m';
+            } else {
+              distVal.innerText = dist.toFixed(1) + ' km';
+            }
+          }
+        });
+        
+        cards.sort((a, b) => parseFloat(a.getAttribute('data-dist') || '9999') - parseFloat(b.getAttribute('data-dist') || '9999'));
+        cards.forEach(card => itemsGrid?.insertBefore(card, emptyState));
+      }
+    }
+
+    // 3. Filtering
+    function applyFilters() {
+      let visibleCount = 0;
+      cards.forEach(card => {
+        const itemName = card.getAttribute('data-name') || '';
+        const itemTags = card.getAttribute('data-tags') || '';
+        
+        const matchesSearch = itemName.includes(currentSearch) || itemTags.includes(currentSearch);
+        
+        if (matchesSearch) {
+          (card as HTMLElement).style.display = 'flex';
+          visibleCount++;
+        } else {
+          (card as HTMLElement).style.display = 'none';
+        }
+      });
+      
+      if(emptyState) emptyState.style.display = visibleCount === 0 ? 'flex' : 'none';
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        currentSearch = (e.target as HTMLInputElement).value.toLowerCase();
+        applyFilters();
+      });
+    }
+  });
+</script>
+
+<style is:global>
+  .sticky-app-bar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--color-border);
+    padding: 16px 20px 16px;
+  }
+
+  .app-bar-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .back-btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    color: var(--color-text);
+  }
+
+  .app-bar-top h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+
+  .header-action { width: 40px; }
+
+  .search-container {
+    position: relative;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-muted);
+  }
+
+  #searchInput {
+    width: 100%;
+    background: var(--color-bg);
+    border: 1px solid transparent;
+    padding: 14px 16px 14px 44px;
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    font-family: var(--font-family);
+    transition: var(--transition);
+  }
+
+  #searchInput:focus {
+    outline: none;
+    background: var(--color-surface);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px var(--color-primary-light);
+  }
+
+  .main-content {
+    padding-top: 24px;
+    padding-bottom: 80px;
+  }
+
+  .distance-indicator {
+    align-items: center;
+    gap: 8px;
+    color: var(--color-primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    padding: 0 4px;
+  }
+
+  .items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .app-card {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  
+  .app-card:active {
+    transform: scale(0.98);
+  }
+
+  .card-body {
+    display: flex;
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .card-icon-box {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    flex-shrink: 0;
+  }
+
+  .type-negocio { background: #fef3c7; }
+  .type-turismo { background: #dcfce7; }
+  .type-transporte { background: #e0e7ff; }
+  .type-evento { background: #fce7f3; }
+  .type-aviso { background: #fee2e2; }
+
+  .card-info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-right: 48px;
+  }
+
+  .card-info h3 { font-size: 1.1rem; margin-bottom: 4px; line-height: 1.3; }
+  .card-info .subtitle { font-size: 0.85rem; color: var(--color-text-muted); margin: 0 0 8px 0; }
+
+  .card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .meta-tag { font-size: 0.75rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: var(--color-bg); }
+  .meta-tag.price { color: var(--color-success); background: #d1fae5; }
+  .meta-text { font-size: 0.8rem; color: var(--color-text-muted); }
+
+  .distance-badge {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: var(--radius-pill);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .distance-badge svg { color: var(--color-primary); }
+
+  .card-action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 12px 16px;
+  }
+
+  .action-btn {
+    background: transparent;
+    border: none;
+    color: var(--color-primary);
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+  }
+
+  .empty-state {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 20px;
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    border: 1px dashed #cbd5e1;
+  }
+  .empty-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.5; }
+  .empty-state h3 { margin-bottom: 8px; }
+  .empty-state p { color: var(--color-text-muted); font-size: 0.9rem; margin: 0; }
+</style>
