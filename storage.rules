@@ -1,0 +1,16 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /negocios_pendientes/{imageId} {
+      // Permitir lectura para obtener la URL y mostrar la imagen públicamente
+      allow read: if true;
+      
+      // Solo permitir crear si pesa menos de 5MB y es una imagen
+      allow create: if request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+                   
+      // Solo el administrador puede borrar o modificar imágenes
+      allow update, delete: if request.auth != null;
+    }
+  }
+}

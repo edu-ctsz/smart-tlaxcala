@@ -1,0 +1,288 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Panel de Moderación">
+  <div class="container main-content">
+    
+    <div class="app-bar-top">
+      <h2>Panel de Control</h2>
+    </div>
+
+    <!-- Pantalla de Login Simple -->
+    <div id="loginScreen" class="surface-card form-container">
+      <h3>Acceso Restringido</h3>
+      <p class="help-text">Ingresa la contraseña maestra para moderar registros.</p>
+      
+      <div class="form-group">
+        <input type="email" id="adminEmail" placeholder="Correo electrónico...">
+        <input type="password" id="adminPass" placeholder="Contraseña...">
+      </div>
+      
+      <button id="btnLogin" class="btn btn-primary btn-full">Iniciar Sesión</button>
+      <p id="loginError" class="status-msg error"></p>
+    </div>
+
+    <!-- Panel de Moderación -->
+    <div id="adminPanel" style="display: none;">
+      <div class="panel-header">
+        <h3>Negocios Pendientes</h3>
+        <div>
+          <button id="btnRefresh" class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.85rem; margin-right: 8px;">🔄 Recargar</button>
+          <button id="btnLogout" class="btn btn-danger" style="padding: 8px 16px; font-size: 0.85rem;">Cerrar Sesión</button>
+        </div>
+      </div>
+
+      <div id="pendientesList" class="pendientes-list">
+        <p class="help-text text-center">Cargando...</p>
+      </div>
+    </div>
+
+  </div>
+</Layout>
+
+<script>
+  import { db, auth } from "../../lib/firebase";
+  import { collection, getDocs, doc, deleteDoc, setDoc } from "firebase/firestore";
+  import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+
+  const loginScreen = document.getElementById('loginScreen');
+  const adminPanel = document.getElementById('adminPanel');
+  const adminEmail = document.getElementById('adminEmail') as HTMLInputElement;
+  const adminPass = document.getElementById('adminPass') as HTMLInputElement;
+  const btnLogin = document.getElementById('btnLogin');
+  const btnLogout = document.getElementById('btnLogout');
+  const loginError = document.getElementById('loginError');
+  const pendientesList = document.getElementById('pendientesList');
+  const btnRefresh = document.getElementById('btnRefresh');
+
+  // Observador de Estado de Sesión (Persistencia)
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      if(loginScreen) loginScreen.style.display = 'none';
+      if(adminPanel) adminPanel.style.display = 'block';
+      cargarPendientes();
+    } else {
+      if(loginScreen) loginScreen.style.display = 'block';
+      if(adminPanel) adminPanel.style.display = 'none';
+      if(pendientesList) pendientesList.innerHTML = '<p class="help-text text-center">Cargando...</p>';
+    }
+  });
+
+  // 1. Login Logic
+  if (btnLogin) {
+    btnLogin.addEventListener('click', async () => {
+      if (!adminEmail.value || !adminPass.value) {
+        if(loginError) loginError.innerText = "Ingresa correo y contraseña.";
+        return;
+      }
+      if(loginError) loginError.innerText = "Iniciando sesión...";
+      try {
+        await signInWithEmailAndPassword(auth, adminEmail.value, adminPass.value);
+        if(loginError) loginError.innerText = "";
+      } catch (error: any) {
+        if(loginError) loginError.innerText = "Credenciales incorrectas.";
+        console.error(error);
+      }
+    });
+  }
+
+  // Logout Logic
+  if (btnLogout) {
+    btnLogout.addEventListener('click', async () => {
+      await signOut(auth);
+    });
+  }
+
+  if (btnRefresh) {
+    btnRefresh.addEventListener('click', cargarPendientes);
+  }
+
+  // 2. Cargar Pendientes
+  async function cargarPendientes() {
+    if (!pendientesList) return;
+    pendientesList.innerHTML = '<p class="help-text text-center">Cargando datos de Firebase...</p>';
+    
+    try {
+      const querySnapshot = await getDocs(collection(db, "negocios_pendientes"));
+      
+      if (querySnapshot.empty) {
+        pendientesList.innerHTML = `
+          <div class="empty-state">
+            <span style="font-size: 2rem;">✨</span>
+            <p>No hay negocios pendientes de aprobación.</p>
+          </div>`;
+        return;
+      }
+
+      let html = '';
+      querySnapshot.forEach((documento) => {
+        const data = documento.data();
+        const id = documento.id;
+        
+        html += `
+          <div class="surface-card pendiente-card" id="card-${id}">
+            ${data.photoUrl ? `<div class="p-img" style="background-image: url('${data.photoUrl}')"></div>` : ''}
+            <div class="p-info">
+              <h4>${data.nombre}</h4>
+              <p class="p-meta"><strong>Municipio:</strong> ${data.municipio} | <strong>Categoría:</strong> ${data.categoria}</p>
+              <p class="p-meta"><strong>Contacto:</strong> ${data.contacto}</p>
+              <p class="p-meta"><strong>GPS:</strong> ${data.lat}, ${data.lng}</p>
+            </div>
+            <div class="p-actions">
+              <button class="btn btn-success btn-aprobar" data-id="${id}">✅ Aprobar</button>
+              <button class="btn btn-danger btn-rechazar" data-id="${id}">❌ Rechazar</button>
+            </div>
+          </div>
+        `;
+      });
+      
+      pendientesList.innerHTML = html;
+      bindActions(querySnapshot.docs);
+
+    } catch (error) {
+      console.error("Error cargando pendientes", error);
+      pendientesList.innerHTML = '<p class="status-msg error">Error al conectar con Firebase.</p>';
+    }
+  }
+
+  // 3. Bind Actions (Aprobar/Rechazar)
+  function bindActions(docs) {
+    document.querySelectorAll('.btn-aprobar').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const target = e.target as HTMLElement;
+        const id = target.getAttribute('data-id');
+        target.innerText = "Aprobando...";
+        target.setAttribute('disabled', 'true');
+        
+        const docData = docs.find(d => d.id === id)?.data();
+        if (docData) {
+          await aprobarNegocio(id, docData);
+        }
+      });
+    });
+
+    document.querySelectorAll('.btn-rechazar').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const target = e.target as HTMLElement;
+        const id = target.getAttribute('data-id');
+        if(confirm("¿Seguro que quieres eliminar este registro permanentemente?")) {
+          target.innerText = "Eliminando...";
+          target.setAttribute('disabled', 'true');
+          await rechazarNegocio(id);
+        }
+      });
+    });
+  }
+
+  // Lógica de Aprobación: Mover de 'negocios_pendientes' a 'municipios/{municipio}/negocios'
+  async function aprobarNegocio(id, data) {
+    try {
+      const municipio = data.municipio || "desconocido";
+      
+      // 1. Escribir en la ruta oficial pública
+      await setDoc(doc(db, `municipios/${municipio}/negocios`, id), {
+        nombre: data.nombre,
+        categoria: data.categoria,
+        contacto: data.contacto,
+        lat: data.lat,
+        lng: data.lng,
+        photoUrl: data.photoUrl || "",
+        tipo: "negocio",
+        tags: data.categoria.toLowerCase(),
+        estado: "aprobado"
+      });
+
+      // 2. Eliminar de la lista de pendientes
+      await deleteDoc(doc(db, "negocios_pendientes", id));
+      
+      // Remover del DOM
+      document.getElementById(`card-${id}`)?.remove();
+      alert("Negocio aprobado y publicado.");
+
+    } catch (error) {
+      console.error("Error al aprobar:", error);
+      alert("Hubo un error al aprobar el negocio.");
+      cargarPendientes();
+    }
+  }
+
+  // Lógica de Rechazo: Eliminar de 'negocios_pendientes'
+  async function rechazarNegocio(id) {
+    try {
+      await deleteDoc(doc(db, "negocios_pendientes", id));
+      document.getElementById(`card-${id}`)?.remove();
+    } catch (error) {
+      console.error("Error al rechazar:", error);
+      alert("Hubo un error al eliminar.");
+    }
+  }
+</script>
+
+<style>
+  .main-content { padding-top: 40px; }
+  
+  .app-bar-top h2 { margin-bottom: 24px; text-align: center; }
+
+  .form-container {
+    padding: 32px 24px;
+    max-width: 400px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .form-group input {
+    width: 100%;
+    padding: 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    margin: 16px 0;
+    font-size: 1rem;
+    font-family: var(--font-family);
+  }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+
+  .pendientes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .pendiente-card {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .p-img {
+    height: 150px;
+    background-size: cover;
+    background-position: center;
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+  }
+
+  .p-info h4 { margin-bottom: 8px; font-size: 1.1rem; }
+  .p-meta { margin: 4px 0; font-size: 0.85rem; color: var(--color-text-muted); }
+
+  .p-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 8px;
+    border-top: 1px solid var(--color-border);
+    padding-top: 12px;
+  }
+
+  .btn-success { background: #10b981; color: white; border: none; padding: 10px; border-radius: var(--radius-md); font-weight: bold; cursor: pointer; }
+  .btn-danger { background: #ef4444; color: white; border: none; padding: 10px; border-radius: var(--radius-md); font-weight: bold; cursor: pointer; }
+  
+  .empty-state { text-align: center; padding: 40px; color: var(--color-text-muted); }
+</style>

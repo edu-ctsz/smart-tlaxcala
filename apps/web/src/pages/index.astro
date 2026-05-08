@@ -1,11 +1,304 @@
 ---
+import Layout from '../layouts/Layout.astro';
+
+const municipios = [
+  { id: 'ayometla', name: 'Ayometla', img: '⛪', subtitle: 'Tradición y comercio local' },
+  { id: 'san-lorenzo', name: 'San Lorenzo', img: '🌳', subtitle: 'Naturaleza y cultura viva' },
+  { id: 'santo-toribio', name: 'Santo Toribio', img: '🌺', subtitle: 'Color y artesanía' }
+];
 ---
 
-<h1>Smart Tlaxcala</h1>
-<p>Selecciona tu municipio</p>
+<Layout title="Smart Tlaxcala">
+  <div class="home-container container">
+    
+    <!-- App Header Elegante -->
+    <header class="app-header">
+      <div class="logo">
+        <span class="icon">🌿</span>
+        <span class="text">Smart <strong>Tlaxcala</strong></span>
+      </div>
+      <div class="user-avatar">
+        <span>👤</span>
+      </div>
+    </header>
 
-<ul>
-  <li><a href="/ayometla">Ayometla</a></li>
-  <li><a href="/san-lorenzo">San Lorenzo</a></li>
-  <li><a href="/santo-toribio">Santo Toribio</a></li>
-</ul>
+    <!-- Héroe Principal: Geolocalización -->
+    <section class="hero-section">
+      <div class="hero-text">
+        <h1>Tu mundo,<br>en tu bolsillo.</h1>
+        <p>Todo lo que necesitas alrededor de ti, al instante.</p>
+      </div>
+      
+      <div class="action-center">
+        <button id="btnGeo" class="geo-btn pulse-animation">
+          <span class="geo-icon">📍</span>
+          <div class="geo-text">
+            <strong>Descubrir cerca de mí</strong>
+            <span>Usar mi ubicación actual</span>
+          </div>
+        </button>
+        <p id="geoStatus" class="geo-status"></p>
+      </div>
+    </section>
+
+    <!-- Destinos / Navegación Manual -->
+    <section class="destinations-section">
+      <div class="section-header">
+        <h2>Explorar Municipios</h2>
+        <a href="#" class="see-all">Ver mapa</a>
+      </div>
+      
+      <div class="destinations-list">
+        {municipios.map((mun) => (
+          <a href={`/${mun.id}`} class="dest-card surface-card">
+            <div class="dest-img">{mun.img}</div>
+            <div class="dest-info">
+              <h3>{mun.name}</h3>
+              <p>{mun.subtitle}</p>
+            </div>
+            <div class="dest-arrow">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+
+  </div>
+</Layout>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const btnGeo = document.getElementById('btnGeo');
+    const geoStatus = document.getElementById('geoStatus');
+
+    if (btnGeo) {
+      btnGeo.addEventListener('click', () => {
+        if (!navigator.geolocation) {
+          geoStatus.innerText = "Ubicación no soportada.";
+          return;
+        }
+
+        geoStatus.innerText = "Buscando...";
+        btnGeo.classList.add('loading');
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            localStorage.setItem('userLat', lat.toString());
+            localStorage.setItem('userLng', lng.toString());
+            
+            geoStatus.innerText = "¡Listo!";
+            
+            setTimeout(() => {
+              window.location.href = '/ayometla';
+            }, 500);
+          },
+          (error) => {
+            btnGeo.classList.remove('loading');
+            geoStatus.innerText = "No pudimos obtener tu ubicación.";
+          }
+        );
+      });
+    }
+  });
+</script>
+
+<style>
+  .home-container {
+    padding: 24px 0 60px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 60px;
+  }
+  
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.5rem;
+    color: var(--color-text);
+  }
+  
+  .logo .icon { font-size: 1.8rem; }
+  .logo strong { color: var(--color-primary); }
+
+  .user-avatar {
+    width: 48px;
+    height: 48px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-sm);
+    font-size: 1.4rem;
+  }
+
+  .hero-section {
+    margin-bottom: 80px;
+    text-align: center;
+  }
+
+  .hero-text {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .hero-text h1 {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    margin-bottom: 16px;
+  }
+  
+  .hero-text p {
+    font-size: clamp(1.1rem, 2vw, 1.3rem);
+    color: var(--color-text-muted);
+    margin-bottom: 40px;
+    line-height: 1.6;
+  }
+
+  .action-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  .geo-btn {
+    width: 100%;
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 30px;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 12px 24px rgba(2, 132, 199, 0.3);
+    cursor: pointer;
+    transition: var(--transition);
+    text-align: left;
+  }
+
+  .geo-btn:active {
+    transform: scale(0.96);
+  }
+
+  .geo-btn.loading {
+    opacity: 0.8;
+    animation: pulse 1s infinite;
+  }
+
+  .geo-icon {
+    font-size: 2.2rem;
+    background: rgba(255,255,255,0.2);
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .geo-text {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .geo-text strong {
+    font-size: 1.3rem;
+    font-weight: 700;
+  }
+
+  .geo-text span {
+    font-size: 1rem;
+    opacity: 0.9;
+    font-weight: 500;
+  }
+
+  .geo-status {
+    margin-top: 16px;
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    text-align: center;
+    height: 24px;
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 24px;
+  }
+
+  .section-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .see-all {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .destinations-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+  }
+
+  .dest-card {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    gap: 16px;
+    text-decoration: none;
+    color: var(--color-text);
+  }
+  
+  .dest-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--color-primary-light);
+  }
+
+  .dest-img {
+    width: 56px;
+    height: 56px;
+    background: var(--color-bg);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    flex-shrink: 0;
+  }
+
+  .dest-info {
+    flex-grow: 1;
+  }
+
+  .dest-info h3 {
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+  }
+
+  .dest-info p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+  }
+
+  .dest-arrow {
+    color: #cbd5e1;
+  }
+</style>

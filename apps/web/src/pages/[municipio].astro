@@ -1,0 +1,516 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { db } from "../lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
+
+export function getStaticPaths() {
+  return [
+    { params: { municipio: 'ayometla' }, props: { name: 'Ayometla' } },
+    { params: { municipio: 'san-lorenzo' }, props: { name: 'San Lorenzo' } },
+    { params: { municipio: 'santo-toribio' }, props: { name: 'Santo Toribio' } },
+  ];
+}
+
+const { municipio } = Astro.params;
+const { name } = Astro.props;
+
+// Coordenadas base del municipio (ej. Centro)
+const baseLat = 19.2078;
+const baseLng = -98.2045;
+
+let items = [];
+try {
+  const negociosRef = collection(db, `municipios/${municipio}/negocios`);
+  const querySnapshot = await getDocs(negociosRef);
+  items = querySnapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      nombre: data.nombre as string,
+      categoria: data.categoria as string,
+      tipo: data.tipo || 'negocio',
+      lat: data.lat || (baseLat + (Math.random() - 0.5) * 0.02),
+      lng: data.lng || (baseLng + (Math.random() - 0.5) * 0.02),
+      tags: data.tags || "tacos, comida, restaurante",
+      contacto: data.contacto || "Llamar"
+    };
+  });
+} catch (e) {
+  console.error("Error fetching data:", e);
+}
+
+// Mock de datos enriquecido para la App
+const mockData = [
+  { id: 't1', nombre: 'Ruta 1 Centro - Estación', tipo: 'transporte', costo: '$10.00 MXN', horario: '06:00 - 22:00', icon: '🚐', lat: baseLat + 0.005, lng: baseLng, tags: "bus, combi, parada" },
+  { id: 't2', nombre: 'Parroquia principal', tipo: 'turismo', categoria: 'Arquitectura Colonial', icon: '⛪', lat: baseLat + 0.001, lng: baseLng - 0.001, tags: "iglesia, fotos, centro" },
+  { id: 'e1', nombre: 'Feria Patronal', tipo: 'evento', fecha: 'Próximo 15 de Agosto', icon: '🎉', lat: baseLat - 0.002, lng: baseLng + 0.003, tags: "fiesta, juegos, diversion" },
+  { id: 'a1', nombre: 'Campaña de Vacunación', tipo: 'aviso', fecha: 'Fin de semana', categoria: 'Salud Pública', icon: '📢', lat: baseLat, lng: baseLng, tags: "salud, perros, vacunas" },
+  { id: 'n1', nombre: 'Taquería El Pastor', tipo: 'negocio', categoria: 'Comida', precio: '$', icon: '🌮', lat: baseLat + 0.008, lng: baseLng + 0.008, tags: "tacos, cena, carne, pastor", contacto: "246 123 4567" },
+  { id: 'n2', nombre: 'Cafetería La Parroquia', tipo: 'negocio', categoria: 'Bebidas', precio: '$$', icon: '☕', lat: baseLat - 0.005, lng: baseLng - 0.004, tags: "cafe, capuchino, pan, postres, bebidas", contacto: "246 987 6543" }
+];
+
+const allItems = [...items, ...mockData];
+---
+
+<Layout title={`Explorar ${name}`}>
+  
+  <!-- Sticky App-Bar -->
+  <div class="sticky-app-bar">
+    <div class="app-bar-top">
+      <a href="/" class="back-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+      </a>
+      <h2>{name}</h2>
+      <div class="header-action"></div>
+    </div>
+    
+    <!-- Search Input -->
+    <div class="search-container">
+      <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="search" id="searchInput" placeholder="Tacos, transporte, turismo..." aria-label="Buscar">
+    </div>
+
+    <!-- Scrollable Pills -->
+    <div class="pills-container">
+      <button class="pill active" data-filter="all">🌟 Todo</button>
+      <button class="pill" data-filter="negocio">🏪 Locales</button>
+      <button class="pill" data-filter="turismo">📸 Turismo</button>
+      <button class="pill" data-filter="transporte">🚐 Transporte</button>
+      <button class="pill" data-filter="evento">🎉 Eventos</button>
+      <button class="pill" data-filter="aviso">📢 Avisos</button>
+    </div>
+  </div>
+
+  <div class="container main-content">
+    <!-- Indicador de geolocalización -->
+    <div id="distanceIndicator" class="distance-indicator" style="display: none;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
+      Mostrando los más cercanos a ti
+    </div>
+
+    <!-- Cards 2.0 Grid -->
+    <div class="items-list" id="itemsGrid">
+      {allItems.map((item) => (
+        <div class="app-card surface-card" data-type={item.tipo} data-name={item.nombre.toLowerCase()} data-tags={item.tags ? item.tags.toLowerCase() : ''} data-lat={item.lat} data-lng={item.lng}>
+          
+          <div class="card-body">
+            <!-- Izquierda: Icono flotante -->
+            <div class={`card-icon-box type-${item.tipo}`}>
+              <span class="icon">{item.icon || '🏪'}</span>
+            </div>
+            
+            <!-- Centro: Información -->
+            <div class="card-info">
+              <h3>{item.nombre}</h3>
+              <p class="subtitle">{item.categoria || item.tipo.charAt(0).toUpperCase() + item.tipo.slice(1)}</p>
+              
+              <div class="card-meta">
+                {item.precio && <span class="meta-tag price">{item.precio}</span>}
+                {item.horario && <span class="meta-text">{item.horario}</span>}
+                {item.fecha && <span class="meta-text">{item.fecha}</span>}
+              </div>
+            </div>
+          </div>
+          
+          <!-- Badge de distancia destacado -->
+          <div class="distance-badge" style="display: none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            <span class="dist-val">--</span>
+          </div>
+          
+          <!-- CTA Action Base -->
+          <div class="card-action-bar">
+            {item.costo ? (
+              <div class="cost-tag">{item.costo}</div>
+            ) : (
+              <button class="action-btn">
+                {item.contacto ? 'Contactar' : 'Ver detalles'} 
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </button>
+            )}
+          </div>
+        </div>
+      ))}
+      
+      <div class="empty-state" id="emptyState" style={allItems.length === 0 ? "display:flex;" : "display:none;"}>
+        <div class="empty-icon">🔍</div>
+        <h3>No encontramos resultados</h3>
+        <p>Intenta buscar con otras palabras o selecciona otra categoría.</p>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; 
+    const dLat = (lat2 - lat1) * Math.PI / 180;  
+    const dLon = (lon2 - lon1) * Math.PI / 180; 
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    return R * c; 
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const pills = document.querySelectorAll('.pill');
+    const cards = Array.from(document.querySelectorAll('.app-card'));
+    const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+    const itemsGrid = document.getElementById('itemsGrid');
+    const emptyState = document.getElementById('emptyState');
+    const distanceIndicator = document.getElementById('distanceIndicator');
+
+    let currentFilter = 'all';
+    let currentSearch = '';
+    
+    // Proximity Sorting
+    const userLatStr = localStorage.getItem('userLat');
+    const userLngStr = localStorage.getItem('userLng');
+    
+    if (userLatStr && userLngStr) {
+      const userLat = parseFloat(userLatStr);
+      const userLng = parseFloat(userLngStr);
+      
+      distanceIndicator.style.display = 'flex';
+      
+      cards.forEach(card => {
+        const itemLat = parseFloat(card.getAttribute('data-lat') || '0');
+        const itemLng = parseFloat(card.getAttribute('data-lng') || '0');
+        const dist = calculateDistance(userLat, userLng, itemLat, itemLng);
+        card.setAttribute('data-dist', dist.toString());
+        
+        const distBadge = card.querySelector('.distance-badge') as HTMLElement;
+        const distVal = card.querySelector('.dist-val');
+        if (distBadge && distVal) {
+          distBadge.style.display = 'flex';
+          if (dist < 1) {
+            distVal.innerText = (dist * 1000).toFixed(0) + ' m';
+          } else {
+            distVal.innerText = dist.toFixed(1) + ' km';
+          }
+        }
+      });
+      
+      cards.sort((a, b) => parseFloat(a.getAttribute('data-dist') || '9999') - parseFloat(b.getAttribute('data-dist') || '9999'));
+      cards.forEach(card => itemsGrid.insertBefore(card, emptyState));
+    }
+
+    // Filtering
+    function applyFilters() {
+      let visibleCount = 0;
+      cards.forEach(card => {
+        const itemType = card.getAttribute('data-type');
+        const itemName = card.getAttribute('data-name');
+        const itemTags = card.getAttribute('data-tags');
+        
+        const matchesFilter = currentFilter === 'all' || itemType === currentFilter;
+        const matchesSearch = itemName.includes(currentSearch) || itemTags.includes(currentSearch);
+        
+        if (matchesFilter && matchesSearch) {
+          (card as HTMLElement).style.display = 'flex';
+          visibleCount++;
+        } else {
+          (card as HTMLElement).style.display = 'none';
+        }
+      });
+      
+      emptyState.style.display = visibleCount === 0 ? 'flex' : 'none';
+    }
+
+    pills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        pills.forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        currentFilter = pill.getAttribute('data-filter');
+        applyFilters();
+        
+        // Center the pill in the scroll view
+        pill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      });
+    });
+
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        currentSearch = (e.target as HTMLInputElement).value.toLowerCase();
+        applyFilters();
+      });
+    }
+  });
+</script>
+
+<style>
+  .sticky-app-bar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--color-border);
+    padding: 16px 20px 0;
+  }
+
+  .app-bar-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .back-btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    color: var(--color-text);
+  }
+
+  .app-bar-top h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+
+  .header-action {
+    width: 40px; /* Balance symmetry */
+  }
+
+  .search-container {
+    position: relative;
+    margin-bottom: 16px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-muted);
+  }
+
+  #searchInput {
+    width: 100%;
+    background: var(--color-bg);
+    border: 1px solid transparent;
+    padding: 14px 16px 14px 44px;
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    font-family: var(--font-family);
+    transition: var(--transition);
+  }
+
+  #searchInput:focus {
+    outline: none;
+    background: var(--color-surface);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px var(--color-primary-light);
+  }
+
+  .pills-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 16px;
+    -ms-overflow-style: none;  
+    scrollbar-width: none;
+  }
+
+  .pills-container::-webkit-scrollbar { 
+    display: none; 
+  }
+
+  .pill {
+    white-space: nowrap;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    padding: 8px 16px;
+    border-radius: var(--radius-pill);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: var(--transition);
+  }
+
+  .pill.active {
+    background: var(--color-text);
+    color: var(--color-surface);
+    border-color: var(--color-text);
+  }
+
+  .main-content {
+    padding-top: 24px;
+    padding-bottom: 80px;
+  }
+
+  .distance-indicator {
+    align-items: center;
+    gap: 8px;
+    color: var(--color-primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    padding: 0 4px;
+  }
+
+  .items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* Cards 2.0 Asymmetric Layout */
+  .app-card {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card-body {
+    display: flex;
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .card-icon-box {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    flex-shrink: 0;
+  }
+
+  /* Colores sutiles por categoría */
+  .type-negocio { background: #fef3c7; }
+  .type-turismo { background: #dcfce7; }
+  .type-transporte { background: #e0e7ff; }
+  .type-evento { background: #fce7f3; }
+  .type-aviso { background: #fee2e2; }
+
+  .card-info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-right: 48px; /* Espacio para el badge de distancia */
+  }
+
+  .card-info h3 {
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+
+  .card-info .subtitle {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin: 0 0 8px 0;
+  }
+
+  .card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .meta-tag {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--color-bg);
+  }
+
+  .meta-tag.price {
+    color: var(--color-success);
+    background: #d1fae5;
+  }
+
+  .meta-text {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+  }
+
+  /* Distance Badge Flotante Superior Derecha */
+  .distance-badge {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: var(--radius-pill);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .distance-badge svg {
+    color: var(--color-primary);
+  }
+
+  /* Card Action Base */
+  .card-action-bar {
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 12px 16px;
+    background: #fafbfc;
+  }
+
+  .action-btn {
+    background: transparent;
+    border: none;
+    color: var(--color-primary);
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .cost-tag {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--color-text);
+  }
+
+  /* Empty State Moderno */
+  .empty-state {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 20px;
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    border: 1px dashed #cbd5e1;
+  }
+
+  .empty-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+
+  .empty-state h3 {
+    margin-bottom: 8px;
+  }
+
+  .empty-state p {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    margin: 0;
+  }
+</style>

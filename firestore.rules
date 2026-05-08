@@ -1,18 +1,22 @@
-rules_version='2'
-
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Reglas para el Buzón de Solicitudes
+    match /negocios_pendientes/{document} {
+      allow create: if true; // Cualquiera puede enviar una solicitud
+      allow read, update, delete: if request.auth != null; // Solo Admin puede ver/moderar
+    }
+    
+    // Reglas para el Directorio Oficial
+    match /municipios/{municipioId}/negocios/{document} {
+      allow read: if true; // Público general puede ver el directorio
+      allow create, update, delete: if request.auth != null; // Solo Admin puede publicar
+    }
+    
+    // Denegar cualquier otra cosa por defecto
     match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2026, 4, 28);
+      allow read, write: if false;
     }
   }
 }

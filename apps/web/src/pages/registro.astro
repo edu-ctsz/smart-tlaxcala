@@ -1,0 +1,439 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const municipios = [
+  { id: 'ayometla', name: 'Ayometla' },
+  { id: 'san-lorenzo', name: 'San Lorenzo' },
+  { id: 'santo-toribio', name: 'Santo Toribio' }
+];
+
+const categorias = [
+  'Comida', 'Bebidas', 'Servicios', 'Salud', 'Tienda', 'Transporte', 'Turismo', 'Otro'
+];
+---
+
+<Layout title="Registro de Negocio">
+  <div class="container main-content">
+    
+    <div class="app-bar-top">
+      <a href="/" class="back-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+      </a>
+      <h2>Suma tu negocio</h2>
+      <div style="width:40px"></div>
+    </div>
+
+    <div class="intro-text">
+      <p>Aparece gratis en el directorio digital y llega a más clientes cerca de ti.</p>
+    </div>
+
+    <form id="registroForm" class="surface-card form-container">
+      
+      <!-- Paso 1: Info Básica -->
+      <div class="form-group">
+        <label for="nombre">Nombre de tu negocio o servicio *</label>
+        <input type="text" id="nombre" name="nombre" required placeholder="Ej: Taquería El Pastor">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="municipio">Municipio *</label>
+          <select id="municipio" name="municipio" required>
+            <option value="">Selecciona...</option>
+            {municipios.map(m => <option value={m.id}>{m.name}</option>)}
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="categoria">Categoría *</label>
+          <select id="categoria" name="categoria" required>
+            <option value="">Selecciona...</option>
+            {categorias.map(c => <option value={c}>{c}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="contacto">Teléfono o WhatsApp *</label>
+        <input type="tel" id="contacto" name="contacto" required placeholder="Ej: 246 123 4567">
+      </div>
+
+      <!-- Paso 2: Ubicación GPS -->
+      <div class="form-group gps-group">
+        <label>Ubicación exacta *</label>
+        <p class="help-text">Los clientes te encontrarán cuando busquen lugares cercanos.</p>
+        
+        <button type="button" id="btnGps" class="btn btn-secondary btn-full">
+          📍 Usar mi ubicación actual
+        </button>
+        <div id="gpsStatus" class="status-msg"></div>
+        
+        <input type="hidden" id="lat" name="lat" required>
+        <input type="hidden" id="lng" name="lng" required>
+      </div>
+
+      <!-- Paso 3: Foto -->
+      <div class="form-group">
+        <label for="foto">Foto principal (opcional)</label>
+        <div class="file-upload-wrapper">
+          <input type="file" id="foto" name="foto" accept="image/*" class="file-input">
+          <div class="file-dummy">
+            <span class="icon">📷</span>
+            <span class="text">Toca para elegir una foto</span>
+          </div>
+        </div>
+        <p id="fileName" class="file-name"></p>
+      </div>
+
+      <div class="submit-wrapper">
+        <button type="submit" id="btnSubmit" class="btn btn-primary btn-full pulse-animation">
+          Enviar para revisión
+        </button>
+        <div id="submitStatus" class="submit-status"></div>
+      </div>
+
+    </form>
+    
+    <!-- Pantalla de Éxito Oculta -->
+    <div id="successScreen" class="success-screen" style="display: none;">
+      <div class="success-icon">🎉</div>
+      <h3>¡Registro enviado!</h3>
+      <p>Tu negocio está en revisión. Una vez aprobado, aparecerá en el directorio principal.</p>
+      <a href="/" class="btn btn-secondary">Volver al inicio</a>
+    </div>
+
+  </div>
+</Layout>
+
+<script>
+  import { db, storage } from "../lib/firebase";
+  import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+  import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
+  const form = document.getElementById('registroForm') as HTMLFormElement;
+  const btnGps = document.getElementById('btnGps');
+  const gpsStatus = document.getElementById('gpsStatus');
+  const latInput = document.getElementById('lat') as HTMLInputElement;
+  const lngInput = document.getElementById('lng') as HTMLInputElement;
+  
+  const fotoInput = document.getElementById('foto') as HTMLInputElement;
+  const fileNameDisplay = document.getElementById('fileName');
+  
+  const btnSubmit = document.getElementById('btnSubmit') as HTMLButtonElement;
+  const submitStatus = document.getElementById('submitStatus');
+  const successScreen = document.getElementById('successScreen');
+
+  // 1. Lógica GPS
+  if (btnGps) {
+    btnGps.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        if(gpsStatus) {
+          gpsStatus.innerText = "Tu navegador no soporta geolocalización.";
+          gpsStatus.className = "status-msg error";
+        }
+        return;
+      }
+
+      if(gpsStatus) {
+        gpsStatus.innerText = "Obteniendo coordenadas...";
+        gpsStatus.className = "status-msg";
+      }
+      btnGps.setAttribute('disabled', 'true');
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          if(latInput) latInput.value = position.coords.latitude.toString();
+          if(lngInput) lngInput.value = position.coords.longitude.toString();
+          if(gpsStatus) {
+            gpsStatus.innerText = "✅ Ubicación guardada exitosamente.";
+            gpsStatus.className = "status-msg success";
+          }
+          btnGps.style.display = 'none';
+        },
+        (error) => {
+          btnGps.removeAttribute('disabled');
+          if(gpsStatus) {
+            gpsStatus.innerText = "❌ No pudimos obtener tu ubicación. Asegúrate de dar permisos.";
+            gpsStatus.className = "status-msg error";
+          }
+        }
+      );
+    });
+  }
+
+  // 2. Lógica Foto
+  if (fotoInput) {
+    fotoInput.addEventListener('change', (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file && fileNameDisplay) {
+        fileNameDisplay.innerText = file.name;
+      }
+    });
+  }
+
+  // 3. Submit Handler
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      if (!latInput.value || !lngInput.value) {
+        alert("Por favor, usa el botón de ubicación para añadir tus coordenadas GPS.");
+        return;
+      }
+
+      if(btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.innerText = "Subiendo datos...";
+      }
+      if(submitStatus) submitStatus.innerText = "";
+
+      try {
+        // Extraer datos
+        const nombre = (document.getElementById('nombre') as HTMLInputElement).value;
+        const municipio = (document.getElementById('municipio') as HTMLSelectElement).value;
+        const categoria = (document.getElementById('categoria') as HTMLSelectElement).value;
+        const contacto = (document.getElementById('contacto') as HTMLInputElement).value;
+        const lat = parseFloat(latInput.value);
+        const lng = parseFloat(lngInput.value);
+        const fotoFile = fotoInput.files?.[0];
+
+        let photoUrl = "";
+
+        // Subir foto si existe
+        if (fotoFile) {
+          if(btnSubmit) btnSubmit.innerText = "Subiendo imagen...";
+          const storageRef = ref(storage, `negocios_pendientes/${Date.now()}_${fotoFile.name}`);
+          const uploadResult = await uploadBytes(storageRef, fotoFile);
+          photoUrl = await getDownloadURL(uploadResult.ref);
+        }
+
+        // Guardar en Firestore
+        if(btnSubmit) btnSubmit.innerText = "Guardando registro...";
+        await addDoc(collection(db, "negocios_pendientes"), {
+          nombre,
+          municipio,
+          categoria,
+          contacto,
+          lat,
+          lng,
+          photoUrl,
+          estado: "pendiente",
+          tipo: "negocio",
+          creado_en: serverTimestamp()
+        });
+
+        // Éxito
+        form.style.display = 'none';
+        const introText = document.querySelector('.intro-text');
+        if(introText) introText.setAttribute('style', 'display:none');
+        if(successScreen) successScreen.style.display = 'flex';
+        
+      } catch (error) {
+        console.error("Error al registrar:", error);
+        if(submitStatus) {
+          submitStatus.innerText = "❌ Hubo un error al enviar el registro. Intenta de nuevo.";
+          submitStatus.style.color = "red";
+        }
+        if(btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.innerText = "Enviar para revisión";
+        }
+      }
+    });
+  }
+</script>
+
+<style>
+  .main-content {
+    padding-top: 24px;
+    padding-bottom: 60px;
+  }
+
+  .app-bar-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .back-btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    color: var(--color-text);
+  }
+
+  .app-bar-top h2 {
+    font-size: 1.3rem;
+  }
+
+  .intro-text {
+    margin-bottom: 24px;
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  .form-container {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--color-text);
+  }
+
+  .help-text {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    margin: -4px 0 4px 0;
+  }
+
+  input[type="text"],
+  input[type="tel"],
+  select {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid #cbd5e1;
+    background: var(--color-bg);
+    font-family: var(--font-family);
+    font-size: 1rem;
+    transition: var(--transition);
+    appearance: none;
+  }
+
+  select {
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1em;
+  }
+
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+  }
+
+  .btn-full {
+    width: 100%;
+  }
+
+  .gps-group {
+    background: #f8fafc;
+    padding: 16px;
+    border-radius: var(--radius-md);
+    border: 1px dashed #cbd5e1;
+  }
+
+  .status-msg {
+    font-size: 0.85rem;
+    margin-top: 8px;
+    font-weight: 500;
+  }
+  .status-msg.success { color: var(--color-success); }
+  .status-msg.error { color: #ef4444; }
+
+  /* Custom File Input */
+  .file-upload-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100px;
+    border-radius: var(--radius-md);
+    border: 2px dashed #cbd5e1;
+    background: #f8fafc;
+    overflow: hidden;
+    transition: var(--transition);
+  }
+  
+  .file-upload-wrapper:hover {
+    border-color: var(--color-primary);
+    background: var(--color-primary-light);
+  }
+
+  .file-input {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 10;
+  }
+
+  .file-dummy {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+  }
+
+  .file-dummy .icon {
+    font-size: 2rem;
+    margin-bottom: 4px;
+  }
+
+  .file-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    margin-top: 4px;
+  }
+
+  .submit-wrapper {
+    margin-top: 16px;
+    border-top: 1px solid var(--color-border);
+    padding-top: 24px;
+  }
+
+  .submit-status {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .success-screen {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 60px 20px;
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    margin-top: 40px;
+  }
+
+  .success-icon {
+    font-size: 4rem;
+    margin-bottom: 24px;
+  }
+
+  .success-screen h3 {
+    font-size: 1.5rem;
+    margin-bottom: 12px;
+  }
+
+  .success-screen p {
+    color: var(--color-text-muted);
+    margin-bottom: 32px;
+  }
+</style>

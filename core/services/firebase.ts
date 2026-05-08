@@ -1,5 +1,6 @@
-import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore"; // 🔥 Agregamos Firestore
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore"; 
+import { getStorage } from "firebase/storage"; 
 
 const firebaseConfig = {
   apiKey: "AIzaSyD0E6SV1zXuTDEkaE14j6Ey5Vsg-4gp-H0",
@@ -11,6 +12,6 @@ const firebaseConfig = {
   measurementId: "G-8FY7VSPBV2"
 };
 
-// Inicializamos Firebase y exportamos la base de datos
-export const app = initializeApp(firebaseConfig);
+export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
+export const storage = getStorage(app);
