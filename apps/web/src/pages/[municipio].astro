@@ -1,7 +1,5 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { db } from "../lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
 
 export function getStaticPaths() {
   return [
@@ -18,29 +16,8 @@ const { name } = Astro.props;
 const baseLat = 19.2078;
 const baseLng = -98.2045;
 
-let items = [];
-try {
-  const negociosRef = collection(db, `municipios/${municipio}/negocios`);
-  const querySnapshot = await getDocs(negociosRef);
-  items = querySnapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      nombre: data.nombre as string,
-      categoria: data.categoria as string,
-      tipo: data.tipo || 'negocio',
-      lat: data.lat || (baseLat + (Math.random() - 0.5) * 0.02),
-      lng: data.lng || (baseLng + (Math.random() - 0.5) * 0.02),
-      tags: data.tags || "tacos, comida, restaurante",
-      contacto: data.contacto || "Llamar"
-    };
-  });
-} catch (e) {
-  console.error("Error fetching data:", e);
-}
-
 // Mock de datos enriquecido para la App
-const mockData = [
+const allItems = [
   { id: 't1', nombre: 'Ruta 1 Centro - Estación', tipo: 'transporte', costo: '$10.00 MXN', horario: '06:00 - 22:00', icon: '🚐', lat: baseLat + 0.005, lng: baseLng, tags: "bus, combi, parada" },
   { id: 't2', nombre: 'Parroquia principal', tipo: 'turismo', categoria: 'Arquitectura Colonial', icon: '⛪', lat: baseLat + 0.001, lng: baseLng - 0.001, tags: "iglesia, fotos, centro" },
   { id: 'e1', nombre: 'Feria Patronal', tipo: 'evento', fecha: 'Próximo 15 de Agosto', icon: '🎉', lat: baseLat - 0.002, lng: baseLng + 0.003, tags: "fiesta, juegos, diversion" },
@@ -48,8 +25,6 @@ const mockData = [
   { id: 'n1', nombre: 'Taquería El Pastor', tipo: 'negocio', categoria: 'Comida', precio: '$', icon: '🌮', lat: baseLat + 0.008, lng: baseLng + 0.008, tags: "tacos, cena, carne, pastor", contacto: "246 123 4567" },
   { id: 'n2', nombre: 'Cafetería La Parroquia', tipo: 'negocio', categoria: 'Bebidas', precio: '$$', icon: '☕', lat: baseLat - 0.005, lng: baseLng - 0.004, tags: "cafe, capuchino, pan, postres, bebidas", contacto: "246 987 6543" }
 ];
-
-const allItems = [...items, ...mockData];
 ---
 
 <Layout title={`Explorar ${name}`}>
@@ -81,7 +56,7 @@ const allItems = [...items, ...mockData];
     </div>
   </div>
 
-  <div class="container main-content">
+  <div class="container main-content" id="pageData" data-municipio={municipio}>
     <!-- Indicador de geolocalización -->
     <div id="distanceIndicator" class="distance-indicator" style="display: none;">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
@@ -142,6 +117,9 @@ const allItems = [...items, ...mockData];
 </Layout>
 
 <script>
+  import { db } from "../lib/firebase";
+  import { collection, getDocs, query, where } from "firebase/firestore";
+
   function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; 
     const dLat = (lat2 - lat1) * Math.PI / 180;  
@@ -154,18 +132,64 @@ const allItems = [...items, ...mockData];
     return R * c; 
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
     const pills = document.querySelectorAll('.pill');
-    const cards = Array.from(document.querySelectorAll('.app-card'));
+    let cards = Array.from(document.querySelectorAll('.app-card'));
     const searchInput = document.getElementById('searchInput') as HTMLInputElement;
     const itemsGrid = document.getElementById('itemsGrid');
     const emptyState = document.getElementById('emptyState');
     const distanceIndicator = document.getElementById('distanceIndicator');
+    const pageData = document.getElementById('pageData');
+    const currentMunicipio = pageData?.getAttribute('data-municipio');
 
     let currentFilter = 'all';
     let currentSearch = '';
     
-    // Proximity Sorting
+    // 1. Fetch Dynamic Data
+    if (currentMunicipio) {
+      try {
+        const q = query(collection(db, "negocios"), where("municipio", "==", currentMunicipio), where("estado", "==", "activo"));
+        const snap = await getDocs(q);
+        
+        snap.forEach(doc => {
+          const data = doc.data();
+          const cardHTML = `
+            <div class="app-card surface-card" data-type="${data.tipo || 'negocio'}" data-name="${data.nombre.toLowerCase()}" data-tags="${(data.tags || '').toLowerCase()}" data-lat="${data.lat || 0}" data-lng="${data.lng || 0}">
+              <div class="card-body">
+                <div class="card-icon-box type-${data.tipo || 'negocio'}">
+                  ${data.photoUrl ? `<div style="width:100%; height:100%; border-radius:8px; background-size:cover; background-position:center; background-image:url('${data.photoUrl}')"></div>` : '<span class="icon">🏪</span>'}
+                </div>
+                <div class="card-info">
+                  <h3>${data.nombre}</h3>
+                  <p class="subtitle">${data.categoria || 'Negocio'}</p>
+                </div>
+              </div>
+              <div class="distance-badge" style="display: none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                <span class="dist-val">--</span>
+              </div>
+              <div class="card-action-bar">
+                <button class="action-btn">
+                  ${data.contacto || 'Ver detalles'}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </button>
+              </div>
+            </div>
+          `;
+          // Inyectar en el DOM al principio del Grid
+          if (emptyState) {
+            emptyState.insertAdjacentHTML('beforebegin', cardHTML);
+          }
+        });
+        
+        // Refrescar lista de cards
+        cards = Array.from(document.querySelectorAll('.app-card'));
+      } catch (error) {
+        console.error("Error al cargar negocios en vivo:", error);
+      }
+    }
+
+    // 2. Proximity Sorting
     const userLatStr = localStorage.getItem('userLat');
     const userLngStr = localStorage.getItem('userLng');
     
@@ -173,7 +197,7 @@ const allItems = [...items, ...mockData];
       const userLat = parseFloat(userLatStr);
       const userLng = parseFloat(userLngStr);
       
-      distanceIndicator.style.display = 'flex';
+      if(distanceIndicator) distanceIndicator.style.display = 'flex';
       
       cards.forEach(card => {
         const itemLat = parseFloat(card.getAttribute('data-lat') || '0');
@@ -194,16 +218,16 @@ const allItems = [...items, ...mockData];
       });
       
       cards.sort((a, b) => parseFloat(a.getAttribute('data-dist') || '9999') - parseFloat(b.getAttribute('data-dist') || '9999'));
-      cards.forEach(card => itemsGrid.insertBefore(card, emptyState));
+      cards.forEach(card => itemsGrid?.insertBefore(card, emptyState));
     }
 
-    // Filtering
+    // 3. Filtering
     function applyFilters() {
       let visibleCount = 0;
       cards.forEach(card => {
-        const itemType = card.getAttribute('data-type');
-        const itemName = card.getAttribute('data-name');
-        const itemTags = card.getAttribute('data-tags');
+        const itemType = card.getAttribute('data-type') || '';
+        const itemName = card.getAttribute('data-name') || '';
+        const itemTags = card.getAttribute('data-tags') || '';
         
         const matchesFilter = currentFilter === 'all' || itemType === currentFilter;
         const matchesSearch = itemName.includes(currentSearch) || itemTags.includes(currentSearch);
@@ -216,21 +240,21 @@ const allItems = [...items, ...mockData];
         }
       });
       
-      emptyState.style.display = visibleCount === 0 ? 'flex' : 'none';
+      if(emptyState) emptyState.style.display = visibleCount === 0 ? 'flex' : 'none';
     }
 
+    // Bind Pills
     pills.forEach(pill => {
       pill.addEventListener('click', () => {
         pills.forEach(p => p.classList.remove('active'));
         pill.classList.add('active');
-        currentFilter = pill.getAttribute('data-filter');
+        currentFilter = pill.getAttribute('data-filter') || 'all';
         applyFilters();
-        
-        // Center the pill in the scroll view
         pill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       });
     });
 
+    // Bind Search
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         currentSearch = (e.target as HTMLInputElement).value.toLowerCase();

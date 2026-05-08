@@ -8,10 +8,10 @@ service cloud.firestore {
       allow read, update, delete: if request.auth != null; // Solo Admin puede ver/moderar
     }
     
-    // Reglas para el Directorio Oficial
-    match /municipios/{municipioId}/negocios/{document} {
+    // Reglas para el Directorio Oficial (Colección Global)
+    match /negocios/{document} {
       allow read: if true; // Público general puede ver el directorio
-      allow create, update, delete: if request.auth != null; // Solo Admin puede publicar
+      allow create, update, delete: if request.auth != null; // Solo Admin puede publicar/suspender
     }
     
     // Denegar cualquier otra cosa por defecto

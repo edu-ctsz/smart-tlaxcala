@@ -26,16 +26,24 @@ import Layout from '../../layouts/Layout.astro';
     <!-- Panel de Moderación -->
     <div id="adminPanel" style="display: none;">
       <div class="panel-header">
-        <h3>Negocios Pendientes</h3>
+        <h3>Panel de Moderación</h3>
         <div>
           <button id="btnRefresh" class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.85rem; margin-right: 8px;">🔄 Recargar</button>
           <button id="btnLogout" class="btn btn-danger" style="padding: 8px 16px; font-size: 0.85rem;">Cerrar Sesión</button>
         </div>
       </div>
 
-      <div id="pendientesList" class="pendientes-list">
-        <p class="help-text text-center">Cargando...</p>
+      <div class="tabs-container">
+        <button class="tab-btn active" data-tab="pendientes">⏳ Pendientes</button>
+        <button class="tab-btn" data-tab="activos">✅ Activos</button>
+        <button class="tab-btn" data-tab="suspendidos">⏸️ Suspendidos</button>
       </div>
+
+      <div id="pendientesList" class="list-container">
+        <p class="help-text text-center">Cargando pendientes...</p>
+      </div>
+      <div id="activosList" class="list-container" style="display: none;"></div>
+      <div id="suspendidosList" class="list-container" style="display: none;"></div>
     </div>
 
   </div>
@@ -43,7 +51,7 @@ import Layout from '../../layouts/Layout.astro';
 
 <script>
   import { db, auth } from "../../lib/firebase";
-  import { collection, getDocs, doc, deleteDoc, setDoc } from "firebase/firestore";
+  import { collection, getDocs, doc, deleteDoc, setDoc, query, where, updateDoc } from "firebase/firestore";
   import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 
   const loginScreen = document.getElementById('loginScreen');
@@ -53,19 +61,25 @@ import Layout from '../../layouts/Layout.astro';
   const btnLogin = document.getElementById('btnLogin');
   const btnLogout = document.getElementById('btnLogout');
   const loginError = document.getElementById('loginError');
-  const pendientesList = document.getElementById('pendientesList');
   const btnRefresh = document.getElementById('btnRefresh');
+
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const pendientesList = document.getElementById('pendientesList');
+  const activosList = document.getElementById('activosList');
+  const suspendidosList = document.getElementById('suspendidosList');
+
+  let currentTab = 'pendientes';
 
   // Observador de Estado de Sesión (Persistencia)
   onAuthStateChanged(auth, (user) => {
     if (user) {
       if(loginScreen) loginScreen.style.display = 'none';
       if(adminPanel) adminPanel.style.display = 'block';
-      cargarPendientes();
+      refreshCurrentTab();
     } else {
       if(loginScreen) loginScreen.style.display = 'block';
       if(adminPanel) adminPanel.style.display = 'none';
-      if(pendientesList) pendientesList.innerHTML = '<p class="help-text text-center">Cargando...</p>';
+      if(pendientesList) pendientesList.innerHTML = '<p class="help-text text-center">Inicia sesión...</p>';
     }
   });
 
@@ -94,127 +108,182 @@ import Layout from '../../layouts/Layout.astro';
     });
   }
 
+  // Tabs Logic
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      tabBtns.forEach(b => b.classList.remove('active'));
+      target.classList.add('active');
+      currentTab = target.getAttribute('data-tab') || 'pendientes';
+      
+      if(pendientesList) pendientesList.style.display = currentTab === 'pendientes' ? 'flex' : 'none';
+      if(activosList) activosList.style.display = currentTab === 'activos' ? 'flex' : 'none';
+      if(suspendidosList) suspendidosList.style.display = currentTab === 'suspendidos' ? 'flex' : 'none';
+      
+      refreshCurrentTab();
+    });
+  });
+
   if (btnRefresh) {
-    btnRefresh.addEventListener('click', cargarPendientes);
+    btnRefresh.addEventListener('click', refreshCurrentTab);
+  }
+
+  function refreshCurrentTab() {
+    if (currentTab === 'pendientes') cargarPendientes();
+    if (currentTab === 'activos') cargarActivos();
+    if (currentTab === 'suspendidos') cargarSuspendidos();
+  }
+
+  function createCardHTML(id, data, actionsHTML) {
+    return `
+      <div class="surface-card pendiente-card" id="card-${id}">
+        ${data.photoUrl ? `<div class="p-img" style="background-image: url('${data.photoUrl}')"></div>` : ''}
+        <div class="p-info">
+          <h4>${data.nombre}</h4>
+          <p class="p-meta"><strong>Municipio:</strong> ${data.municipio} | <strong>Categoría:</strong> ${data.categoria}</p>
+          <p class="p-meta"><strong>Contacto:</strong> ${data.contacto}</p>
+        </div>
+        <div class="p-actions">
+          ${actionsHTML}
+        </div>
+      </div>
+    `;
   }
 
   // 2. Cargar Pendientes
   async function cargarPendientes() {
     if (!pendientesList) return;
-    pendientesList.innerHTML = '<p class="help-text text-center">Cargando datos de Firebase...</p>';
-    
+    pendientesList.innerHTML = '<p class="help-text text-center">Cargando...</p>';
     try {
-      const querySnapshot = await getDocs(collection(db, "negocios_pendientes"));
-      
-      if (querySnapshot.empty) {
-        pendientesList.innerHTML = `
-          <div class="empty-state">
-            <span style="font-size: 2rem;">✨</span>
-            <p>No hay negocios pendientes de aprobación.</p>
-          </div>`;
+      const snap = await getDocs(collection(db, "negocios_pendientes"));
+      if (snap.empty) {
+        pendientesList.innerHTML = '<div class="empty-state">✨<br>No hay negocios pendientes.</div>';
         return;
       }
-
       let html = '';
-      querySnapshot.forEach((documento) => {
-        const data = documento.data();
-        const id = documento.id;
-        
-        html += `
-          <div class="surface-card pendiente-card" id="card-${id}">
-            ${data.photoUrl ? `<div class="p-img" style="background-image: url('${data.photoUrl}')"></div>` : ''}
-            <div class="p-info">
-              <h4>${data.nombre}</h4>
-              <p class="p-meta"><strong>Municipio:</strong> ${data.municipio} | <strong>Categoría:</strong> ${data.categoria}</p>
-              <p class="p-meta"><strong>Contacto:</strong> ${data.contacto}</p>
-              <p class="p-meta"><strong>GPS:</strong> ${data.lat}, ${data.lng}</p>
-            </div>
-            <div class="p-actions">
-              <button class="btn btn-success btn-aprobar" data-id="${id}">✅ Aprobar</button>
-              <button class="btn btn-danger btn-rechazar" data-id="${id}">❌ Rechazar</button>
-            </div>
-          </div>
-        `;
+      const docsData = [];
+      snap.forEach((doc) => {
+        const data = doc.data();
+        docsData.push({id: doc.id, data});
+        html += createCardHTML(doc.id, data, `
+          <button class="btn btn-success btn-aprobar" data-id="${doc.id}">✅ Aprobar</button>
+          <button class="btn btn-danger btn-rechazar" data-id="${doc.id}">❌ Rechazar</button>
+        `);
       });
-      
       pendientesList.innerHTML = html;
-      bindActions(querySnapshot.docs);
-
-    } catch (error) {
-      console.error("Error cargando pendientes", error);
-      pendientesList.innerHTML = '<p class="status-msg error">Error al conectar con Firebase.</p>';
-    }
+      
+      document.querySelectorAll('.btn-aprobar').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const t = e.target as HTMLElement; t.innerText = "..."; t.setAttribute('disabled', 'true');
+          const id = t.getAttribute('data-id');
+          const data = docsData.find(d => d.id === id)?.data;
+          await aprobarNegocio(id, data);
+        });
+      });
+      document.querySelectorAll('.btn-rechazar').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          if(!confirm("¿Borrar permanentemente?")) return;
+          const t = e.target as HTMLElement; t.innerText = "..."; t.setAttribute('disabled', 'true');
+          await deleteDoc(doc(db, "negocios_pendientes", t.getAttribute('data-id')!));
+          refreshCurrentTab();
+        });
+      });
+    } catch (e) { console.error(e); pendientesList.innerHTML = '<p class="status-msg error">Error</p>'; }
   }
 
-  // 3. Bind Actions (Aprobar/Rechazar)
-  function bindActions(docs) {
-    document.querySelectorAll('.btn-aprobar').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const target = e.target as HTMLElement;
-        const id = target.getAttribute('data-id');
-        target.innerText = "Aprobando...";
-        target.setAttribute('disabled', 'true');
-        
-        const docData = docs.find(d => d.id === id)?.data();
-        if (docData) {
-          await aprobarNegocio(id, docData);
-        }
+  // 3. Cargar Activos
+  async function cargarActivos() {
+    if (!activosList) return;
+    activosList.innerHTML = '<p class="help-text text-center">Cargando...</p>';
+    try {
+      const q = query(collection(db, "negocios"), where("estado", "==", "activo"));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        activosList.innerHTML = '<div class="empty-state">No hay negocios activos.</div>';
+        return;
+      }
+      let html = '';
+      snap.forEach((documento) => {
+        html += createCardHTML(documento.id, documento.data(), `
+          <button class="btn btn-warning btn-suspender" data-id="${documento.id}" style="grid-column: span 2; background: #f59e0b; color: white; border: none; padding: 10px; border-radius: var(--radius-md); font-weight: bold; cursor: pointer;">⏸️ Suspender Negocio</button>
+        `);
       });
-    });
-
-    document.querySelectorAll('.btn-rechazar').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        const target = e.target as HTMLElement;
-        const id = target.getAttribute('data-id');
-        if(confirm("¿Seguro que quieres eliminar este registro permanentemente?")) {
-          target.innerText = "Eliminando...";
-          target.setAttribute('disabled', 'true');
-          await rechazarNegocio(id);
-        }
+      activosList.innerHTML = html;
+      
+      document.querySelectorAll('.btn-suspender').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          if(!confirm("¿Suspender este negocio? Dejará de verse en la app.")) return;
+          const t = e.target as HTMLElement; t.innerText = "..."; t.setAttribute('disabled', 'true');
+          await updateDoc(doc(db, "negocios", t.getAttribute('data-id')!), { estado: "suspendido" });
+          refreshCurrentTab();
+        });
       });
-    });
+    } catch (e) { console.error(e); activosList.innerHTML = '<p class="status-msg error">Error</p>'; }
   }
 
-  // Lógica de Aprobación: Mover de 'negocios_pendientes' a 'municipios/{municipio}/negocios'
+  // 4. Cargar Suspendidos
+  async function cargarSuspendidos() {
+    if (!suspendidosList) return;
+    suspendidosList.innerHTML = '<p class="help-text text-center">Cargando...</p>';
+    try {
+      const q = query(collection(db, "negocios"), where("estado", "==", "suspendido"));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        suspendidosList.innerHTML = '<div class="empty-state">No hay negocios suspendidos.</div>';
+        return;
+      }
+      let html = '';
+      snap.forEach((documento) => {
+        html += createCardHTML(documento.id, documento.data(), `
+          <button class="btn btn-success btn-reactivar" data-id="${documento.id}">▶️ Reactivar</button>
+          <button class="btn btn-danger btn-eliminar-final" data-id="${documento.id}">🗑️ Eliminar</button>
+        `);
+      });
+      suspendidosList.innerHTML = html;
+      
+      document.querySelectorAll('.btn-reactivar').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const t = e.target as HTMLElement; t.innerText = "..."; t.setAttribute('disabled', 'true');
+          await updateDoc(doc(db, "negocios", t.getAttribute('data-id')!), { estado: "activo" });
+          refreshCurrentTab();
+        });
+      });
+      document.querySelectorAll('.btn-eliminar-final').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          if(!confirm("¿Borrar definitivamente? Esto no se puede deshacer.")) return;
+          const t = e.target as HTMLElement; t.innerText = "..."; t.setAttribute('disabled', 'true');
+          await deleteDoc(doc(db, "negocios", t.getAttribute('data-id')!));
+          refreshCurrentTab();
+        });
+      });
+    } catch (e) { console.error(e); suspendidosList.innerHTML = '<p class="status-msg error">Error</p>'; }
+  }
+
+  // Lógica de Aprobación: Mover de 'negocios_pendientes' a 'negocios' (Global)
   async function aprobarNegocio(id, data) {
     try {
       const municipio = data.municipio || "desconocido";
-      
-      // 1. Escribir en la ruta oficial pública
-      await setDoc(doc(db, `municipios/${municipio}/negocios`, id), {
+      // 1. Escribir en la ruta global de negocios
+      await setDoc(doc(db, `negocios`, id), {
         nombre: data.nombre,
         categoria: data.categoria,
+        municipio: municipio,
         contacto: data.contacto,
         lat: data.lat,
         lng: data.lng,
         photoUrl: data.photoUrl || "",
         tipo: "negocio",
         tags: data.categoria.toLowerCase(),
-        estado: "aprobado"
+        estado: "activo"
       });
 
-      // 2. Eliminar de la lista de pendientes
+      // 2. Eliminar de pendientes
       await deleteDoc(doc(db, "negocios_pendientes", id));
-      
-      // Remover del DOM
-      document.getElementById(`card-${id}`)?.remove();
-      alert("Negocio aprobado y publicado.");
-
+      refreshCurrentTab();
     } catch (error) {
       console.error("Error al aprobar:", error);
       alert("Hubo un error al aprobar el negocio.");
-      cargarPendientes();
-    }
-  }
-
-  // Lógica de Rechazo: Eliminar de 'negocios_pendientes'
-  async function rechazarNegocio(id) {
-    try {
-      await deleteDoc(doc(db, "negocios_pendientes", id));
-      document.getElementById(`card-${id}`)?.remove();
-    } catch (error) {
-      console.error("Error al rechazar:", error);
-      alert("Hubo un error al eliminar.");
+      refreshCurrentTab();
     }
   }
 </script>
@@ -284,5 +353,38 @@ import Layout from '../../layouts/Layout.astro';
   .btn-success { background: #10b981; color: white; border: none; padding: 10px; border-radius: var(--radius-md); font-weight: bold; cursor: pointer; }
   .btn-danger { background: #ef4444; color: white; border: none; padding: 10px; border-radius: var(--radius-md); font-weight: bold; cursor: pointer; }
   
-  .empty-state { text-align: center; padding: 40px; color: var(--color-text-muted); }
+  .empty-state p {
+    margin: 0;
+  }
+
+  /* TABS CSS */
+  .tabs-container {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    border-bottom: 2px solid var(--color-border);
+    padding-bottom: 8px;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    background: transparent;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .tab-btn.active {
+    background: var(--color-text);
+    color: var(--color-bg);
+  }
+  .list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
 </style>
